@@ -39,7 +39,7 @@ manifest writes so that two sources updating at the same time never lose an upda
 
 ### Prerequisites
 
-- A `CASCADE_STATE_TOKEN` repository secret with `contents: write` and
+- A `CASCADE_STATE_TEST_TOKEN` repository secret with `contents: write` and
   `actions: write` scope (the latter lets the source repos dispatch this repo's
   External Update workflow).
 

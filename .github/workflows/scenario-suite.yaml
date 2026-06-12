@@ -17,8 +17,8 @@ on:
     - cron: '0 6 * * 1'  # Weekly Monday 6am UTC
 
 env:
-  GITHUB_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
-  CASCADE_STATE_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.CASCADE_STATE_TEST_TOKEN }}
+  CASCADE_STATE_TEST_TOKEN: ${{ secrets.CASCADE_STATE_TEST_TOKEN }}
   ARTIFACT_A_REPO: stablekernel/cascade-example-artifact-a
   ARTIFACT_B_REPO: stablekernel/cascade-example-artifact-b
   STAGING_ENV: staging
@@ -31,7 +31,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.CASCADE_STATE_TOKEN }}
+          token: ${{ secrets.CASCADE_STATE_TEST_TOKEN }}
 
       - name: Configure Git
         run: |
@@ -57,7 +57,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.CASCADE_STATE_TOKEN }}
+          token: ${{ secrets.CASCADE_STATE_TEST_TOKEN }}
           ref: main
 
       - name: Configure Git
@@ -154,7 +154,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.CASCADE_STATE_TOKEN }}
+          token: ${{ secrets.CASCADE_STATE_TEST_TOKEN }}
           ref: main
 
       - name: Configure Git
@@ -258,7 +258,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.CASCADE_STATE_TOKEN }}
+          token: ${{ secrets.CASCADE_STATE_TEST_TOKEN }}
           ref: main
 
       - name: Configure Git
