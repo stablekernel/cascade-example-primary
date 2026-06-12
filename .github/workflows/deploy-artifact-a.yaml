@@ -1,0 +1,39 @@
+name: deploy-artifact-a
+# Stub external-deploy callback tracking the shared artifact from
+# stablekernel/cascade-example-artifact-a. Referenced by the primary's
+# external[].deploys[].workflow for the artifact-a source.
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Target environment
+        required: false
+        type: string
+      sha:
+        description: Commit SHA from the source repo
+        required: false
+        type: string
+      version:
+        description: Version from the source repo
+        required: false
+        type: string
+    outputs:
+      deploy_url:
+        description: URL of the tracked artifact
+        value: ${{ jobs.deploy.outputs.deploy_url }}
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_url: ${{ steps.deploy.outputs.deploy_url }}
+    steps:
+      - id: deploy
+        shell: bash
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          SHA: ${{ inputs.sha }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          echo "Tracking artifact-a version=${VERSION:-dev} sha=${SHA:-local} env=${ENVIRONMENT}"
+          sleep 2
+          echo "deploy_url=https://example.com/artifact-a/${ENVIRONMENT}/${SHA:-local}" >> "$GITHUB_OUTPUT"

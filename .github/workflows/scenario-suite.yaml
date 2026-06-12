@@ -1,0 +1,335 @@
+name: Scenario Suite - Cross-Repo Pipeline Validation
+
+# End-to-end driver for the cross-repo primary. It exercises BOTH cross-repo
+# mechanisms this repo owns:
+#   1. Synchronous external uses: callback - the orchestrate run calls
+#      stablekernel/cascade-example-artifact-a build-shared.yaml@main.
+#   2. Asynchronous External Update - artifact-a and artifact-b dispatch this
+#      repo's external-update.yaml, each writing its {deploy_name, sha, version}
+#      into the shared manifest under state.<env>.external.<name>.
+# After each stage the suite reads back the full manifest snapshot (both envs and
+# both external sources) plus tags and releases, and asserts no update is lost
+# when the two sources update the shared manifest concurrently.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 6am UTC
+
+env:
+  GITHUB_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
+  CASCADE_STATE_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
+  ARTIFACT_A_REPO: stablekernel/cascade-example-artifact-a
+  ARTIFACT_B_REPO: stablekernel/cascade-example-artifact-b
+  STAGING_ENV: staging
+
+jobs:
+  reset:
+    name: Reset manifest state
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.CASCADE_STATE_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Reset manifest state
+        run: |
+          yq eval '.ci.state = {}' -i .github/manifest.yaml
+          git add .github/manifest.yaml
+          git commit -m "chore: reset state for scenario test [skip ci]"
+          git push origin main
+
+      - name: Verify reset
+        run: |
+          git log --oneline | grep "reset state for scenario test" || exit 1
+
+  merge-and-build:
+    name: Commit in primary - prerelease + external slots
+    runs-on: ubuntu-latest
+    needs: reset
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.CASCADE_STATE_TOKEN }}
+          ref: main
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Commit dummy src change
+        run: |
+          mkdir -p src
+          echo "timestamp=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > src/version.txt
+          git add src/version.txt
+          git commit -m "test: dummy src change for scenario test [skip ci]"
+          git push origin main
+
+      - name: Wait for orchestrate to complete
+        id: wait_orchestrate
+        run: |
+          MAX_ATTEMPTS=40
+          SLEEP_DURATION=15
+          ATTEMPT=0
+          RUN_ID=""
+          while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
+            RUN_ID=$(gh run list --workflow=orchestrate.yaml --branch=main \
+              --status=completed --limit=1 \
+              --json=databaseId --jq='.[0].databaseId // empty' 2>/dev/null || echo "")
+            if [ -n "$RUN_ID" ]; then
+              echo "Found completed orchestrate run: $RUN_ID"
+              break
+            fi
+            ATTEMPT=$((ATTEMPT + 1))
+            [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ] && sleep "$SLEEP_DURATION"
+          done
+          if [ -z "$RUN_ID" ]; then
+            echo "::error::orchestrate.yaml run did not complete within timeout"
+            exit 1
+          fi
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Assert external uses callback ran (synchronous cross-repo)
+        env:
+          RUN_ID: ${{ steps.wait_orchestrate.outputs.run_id }}
+        run: |
+          gh run view "$RUN_ID" --log > /tmp/orchestrate.log 2>&1 || true
+          if ! grep -qE 'Build \(sharedlib\)|build-sharedlib' /tmp/orchestrate.log; then
+            echo "::error::synchronous external uses: build (sharedlib) leg did not run"
+            exit 1
+          fi
+          echo "OK: synchronous external uses: callback to artifact-a ran"
+
+      - name: Assert staging populated and prerelease created
+        run: |
+          git pull --rebase origin main
+          STAGING_VERSION=$(yq eval '.ci.state.staging.version // ""' .github/manifest.yaml)
+          if [ -z "$STAGING_VERSION" ]; then
+            echo "::error::.ci.state.staging.version is empty after build"
+            exit 1
+          fi
+          if ! echo "$STAGING_VERSION" | grep -qE 'v?[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::staging.version is not semver: $STAGING_VERSION"
+            exit 1
+          fi
+          RELEASE_TAG=$(gh release list --limit=1 | tail -1 | awk '{print $1}')
+          if [ -z "$RELEASE_TAG" ]; then
+            echo "::error::no GitHub release found"
+            exit 1
+          fi
+          IS_PRERELEASE=$(gh release view "$RELEASE_TAG" --json=isPrerelease --jq='.isPrerelease')
+          if [ "$IS_PRERELEASE" != "true" ]; then
+            echo "::warning::release $RELEASE_TAG is not marked prerelease"
+          fi
+          echo "OK: staging=$STAGING_VERSION release=$RELEASE_TAG prerelease=$IS_PRERELEASE"
+
+      - name: Snapshot manifest (all envs + external sources)
+        run: |
+          {
+            echo "## merge-and-build Snapshot"
+            echo ""
+            echo '```yaml'
+            yq eval '.ci.state' .github/manifest.yaml
+            echo '```'
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| staging.version | $(yq eval '.ci.state.staging.version // "~"' .github/manifest.yaml) |"
+            echo "| prod.version | $(yq eval '.ci.state.prod.version // "~"' .github/manifest.yaml) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  external-update-concurrent:
+    name: Concurrent External Update from artifact-a and artifact-b
+    runs-on: ubuntu-latest
+    needs: merge-and-build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.CASCADE_STATE_TOKEN }}
+          ref: main
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Dispatch External Update for artifact-a and artifact-b (concurrent)
+        run: |
+          A_SHA="a$(date +%s)0001"
+          B_SHA="b$(date +%s)0002"
+          echo "A_SHA=$A_SHA" >> "$GITHUB_ENV"
+          echo "B_SHA=$B_SHA" >> "$GITHUB_ENV"
+          # Fire both dispatches back-to-back so they race on the shared manifest.
+          # The generated external-update.yaml serializes them via the
+          # cascade-manifest concurrency group (cancel-in-progress: false).
+          gh workflow run external-update.yaml \
+            -f source_repo="$ARTIFACT_A_REPO" \
+            -f deploy_name=artifact-a \
+            -f environment="$STAGING_ENV" \
+            -f sha="$A_SHA" \
+            -f version=v1.0.0 \
+            -f artifacts='{"artifact_id":"artifact-a-'"$A_SHA"'"}' \
+            --ref main
+          gh workflow run external-update.yaml \
+            -f source_repo="$ARTIFACT_B_REPO" \
+            -f deploy_name=artifact-b \
+            -f environment="$STAGING_ENV" \
+            -f sha="$B_SHA" \
+            -f version=v2.0.0 \
+            -f artifacts='{"artifact_name":"widget-b-'"$B_SHA"'"}' \
+            --ref main
+
+      - name: Wait for both External Update runs to complete
+        run: |
+          MAX_ATTEMPTS=40
+          SLEEP_DURATION=15
+          ATTEMPT=0
+          while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
+            DONE=$(gh run list --workflow=external-update.yaml --branch=main \
+              --status=completed --limit=2 \
+              --json=databaseId --jq='length' 2>/dev/null || echo 0)
+            if [ "$DONE" -ge 2 ]; then
+              echo "Both External Update runs completed"
+              break
+            fi
+            ATTEMPT=$((ATTEMPT + 1))
+            [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ] && sleep "$SLEEP_DURATION"
+          done
+          if [ "$ATTEMPT" -ge "$MAX_ATTEMPTS" ]; then
+            echo "::error::External Update runs did not both complete within timeout"
+            exit 1
+          fi
+
+      - name: Assert both sources absorbed with no loss (serialized)
+        run: |
+          git pull --rebase origin main
+          A_ABSORBED_SHA=$(yq eval '.ci.state.staging.external.artifact-a.sha // ""' .github/manifest.yaml)
+          A_ABSORBED_VER=$(yq eval '.ci.state.staging.external.artifact-a.version // ""' .github/manifest.yaml)
+          B_ABSORBED_SHA=$(yq eval '.ci.state.staging.external.artifact-b.sha // ""' .github/manifest.yaml)
+          B_ABSORBED_VER=$(yq eval '.ci.state.staging.external.artifact-b.version // ""' .github/manifest.yaml)
+
+          if [ "$A_ABSORBED_SHA" != "$A_SHA" ]; then
+            echo "::error::artifact-a sha not absorbed: want $A_SHA got '$A_ABSORBED_SHA'"
+            exit 1
+          fi
+          if [ "$A_ABSORBED_VER" != "v1.0.0" ]; then
+            echo "::error::artifact-a version not absorbed: want v1.0.0 got '$A_ABSORBED_VER'"
+            exit 1
+          fi
+          if [ "$B_ABSORBED_SHA" != "$B_SHA" ]; then
+            echo "::error::artifact-b sha not absorbed: want $B_SHA got '$B_ABSORBED_SHA'"
+            exit 1
+          fi
+          if [ "$B_ABSORBED_VER" != "v2.0.0" ]; then
+            echo "::error::artifact-b version not absorbed: want v2.0.0 got '$B_ABSORBED_VER'"
+            exit 1
+          fi
+          echo "OK: both external sources absorbed with no loss"
+
+      - name: Snapshot external sources
+        run: |
+          {
+            echo "## external-update-concurrent Snapshot"
+            echo ""
+            echo '```yaml'
+            yq eval '.ci.state.staging.external' .github/manifest.yaml
+            echo '```'
+            echo ""
+            echo "| Source | sha | version |"
+            echo "|--------|-----|---------|"
+            echo "| artifact-a | $(yq eval '.ci.state.staging.external.artifact-a.sha // "~"' .github/manifest.yaml) | $(yq eval '.ci.state.staging.external.artifact-a.version // "~"' .github/manifest.yaml) |"
+            echo "| artifact-b | $(yq eval '.ci.state.staging.external.artifact-b.sha // "~"' .github/manifest.yaml) | $(yq eval '.ci.state.staging.external.artifact-b.version // "~"' .github/manifest.yaml) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  promote-staging:
+    name: Promote staging to prod
+    runs-on: ubuntu-latest
+    needs: external-update-concurrent
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.CASCADE_STATE_TOKEN }}
+          ref: main
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Dispatch promote workflow
+        run: |
+          gh workflow run promote.yaml -f mode=default --ref main
+
+      - name: Wait for promote to complete
+        run: |
+          MAX_ATTEMPTS=30
+          SLEEP_DURATION=15
+          ATTEMPT=0
+          RUN_ID=""
+          while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
+            RUN_ID=$(gh run list --workflow=promote.yaml --branch=main \
+              --status=completed --limit=1 \
+              --json=databaseId --jq='.[0].databaseId // empty' 2>/dev/null || echo "")
+            if [ -n "$RUN_ID" ]; then
+              echo "Found completed promote run: $RUN_ID"
+              break
+            fi
+            ATTEMPT=$((ATTEMPT + 1))
+            [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ] && sleep "$SLEEP_DURATION"
+          done
+          if [ -z "$RUN_ID" ]; then
+            echo "::error::promote.yaml run did not complete within timeout"
+            exit 1
+          fi
+
+      - name: Assert prod populated, release published, external state preserved
+        run: |
+          git pull --rebase origin main
+          PROD_VERSION=$(yq eval '.ci.state.prod.version // ""' .github/manifest.yaml)
+          if [ -z "$PROD_VERSION" ] || ! echo "$PROD_VERSION" | grep -qE 'v?[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::prod.version missing or not semver: '$PROD_VERSION'"
+            exit 1
+          fi
+          # External source state must survive the promote (no loss across stages).
+          A_SHA_AFTER=$(yq eval '.ci.state.staging.external.artifact-a.sha // ""' .github/manifest.yaml)
+          B_SHA_AFTER=$(yq eval '.ci.state.staging.external.artifact-b.sha // ""' .github/manifest.yaml)
+          if [ -z "$A_SHA_AFTER" ] || [ -z "$B_SHA_AFTER" ]; then
+            echo "::error::external source state lost during promote (a='$A_SHA_AFTER' b='$B_SHA_AFTER')"
+            exit 1
+          fi
+          RELEASE_TAG=$(gh release list --limit=1 | tail -1 | awk '{print $1}')
+          IS_PRERELEASE=$(gh release view "$RELEASE_TAG" --json=isPrerelease --jq='.isPrerelease')
+          if [ "$IS_PRERELEASE" != "false" ]; then
+            echo "::error::release $RELEASE_TAG still prerelease after promote"
+            exit 1
+          fi
+          echo "OK: prod=$PROD_VERSION release=$RELEASE_TAG published; external state preserved"
+
+      - name: Final snapshot (all envs + all external sources + release)
+        if: always()
+        run: |
+          {
+            echo "## promote-staging Final Snapshot"
+            echo ""
+            echo '```yaml'
+            yq eval '.ci.state' .github/manifest.yaml
+            echo '```'
+            echo ""
+            echo "| Assertion | Result |"
+            echo "|-----------|--------|"
+            echo "| Synchronous external uses: callback ran | check merge-and-build |"
+            echo "| artifact-a absorbed (no loss) | check external-update-concurrent |"
+            echo "| artifact-b absorbed (no loss) | check external-update-concurrent |"
+            echo "| Concurrent updates serialized | check external-update-concurrent |"
+            echo "| prod published + external preserved | OK |"
+          } >> "$GITHUB_STEP_SUMMARY"

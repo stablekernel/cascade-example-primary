@@ -1,0 +1,42 @@
+name: build-app
+# Stub build callback for the primary's own application.
+# Caller: cascade orchestrate job via uses: ./.github/workflows/build-app.yaml
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Target environment for the build
+        required: false
+        type: string
+      sha:
+        description: Commit SHA being built
+        required: false
+        type: string
+      version:
+        description: Version tag to attach to the artifact
+        required: false
+        type: string
+      target_env:
+        description: Hotfix target environment
+        required: false
+        type: string
+    outputs:
+      artifact:
+        description: Identifier for the built application artifact
+        value: ${{ jobs.build.outputs.artifact }}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      artifact: ${{ steps.build.outputs.artifact }}
+    steps:
+      - id: build
+        shell: bash
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          SHA: ${{ inputs.sha }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          echo "Building app version=${VERSION:-dev} sha=${SHA:-local} env=${ENVIRONMENT}"
+          sleep 2
+          echo "artifact=app-${SHA:-local}" >> "$GITHUB_OUTPUT"
