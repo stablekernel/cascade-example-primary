@@ -1,0 +1,31 @@
+name: deploy-app
+# Stub deploy callback for the primary's own application.
+# Caller: cascade orchestrate / promote job via uses: ./.github/workflows/deploy-app.yaml
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Target environment
+        required: false
+        type: string
+      sha:
+        description: Commit SHA to deploy
+        required: false
+        type: string
+      version:
+        description: Semantic version to deploy
+        required: false
+        type: string
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - id: deploy
+        shell: bash
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          SHA: ${{ inputs.sha }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          echo "Deploying app version=${VERSION:-dev} sha=${SHA:-local} env=${ENVIRONMENT}"
+          sleep 2
