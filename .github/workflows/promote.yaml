@@ -105,10 +105,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.9
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.11
         with:
-          token: CASCADE_STATE_TOKEN
-          version: v1.0.0-rc.9
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: v1.0.0-rc.11
       - name: Run Preflight
         id: preflight
         env:
@@ -141,10 +141,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.9
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.11
         with:
-          token: CASCADE_STATE_TOKEN
-          version: v1.0.0-rc.9
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: v1.0.0-rc.11
       - name: Validate Promotion
         env:
           MODE: ${{ github.event.inputs.mode }}
@@ -262,14 +262,14 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.9
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.11
         with:
-          token: CASCADE_STATE_TOKEN
-          version: v1.0.0-rc.9
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: v1.0.0-rc.11
       - name: Generate Changelog
         id: changelog
         env:
-          GH_TOKEN: CASCADE_STATE_TOKEN
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CHANGELOG_BASE_SHA: ${{ needs.preflight.outputs.changelog_base_sha }}
           SOURCE_SHA: ${{ needs.preflight.outputs.source_sha }}
         run: |
@@ -320,7 +320,7 @@ jobs:
           sha: ${{ needs.preflight.outputs.source_sha }}
           tag: ${{ needs.preflight.outputs.source_version }}
           changelog: ${{ steps.changelog.outputs.changelog }}
-          token: CASCADE_STATE_TOKEN
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Ensure Release Exists
         if: ${{ github.event.inputs.dry_run != 'true' && (needs.preflight.outputs.is_prerelease_env == 'true' || needs.preflight.outputs.is_final_env == 'true') }}
         uses: ./.github/actions/manage-release
@@ -331,7 +331,7 @@ jobs:
           sha: ${{ needs.preflight.outputs.source_sha }}
           tag: ${{ needs.preflight.outputs.source_version }}
           changelog: ${{ steps.changelog.outputs.changelog }}
-          token: CASCADE_STATE_TOKEN
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Create Prerelease
         if: ${{ github.event.inputs.dry_run != 'true' && needs.preflight.outputs.is_prerelease_env == 'true' }}
         uses: ./.github/actions/manage-release
@@ -342,13 +342,13 @@ jobs:
           sha: ${{ steps.release-data.outputs.sha }}
           tag: ${{ steps.release-data.outputs.rc_version }}
           changelog: ${{ steps.changelog.outputs.changelog }}
-          token: CASCADE_STATE_TOKEN
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Cleanup Orphaned Releases
         if: ${{ github.event.inputs.dry_run != 'true' && needs.preflight.outputs.skipped_envs != '' }}
         env:
           SKIPPED_ENVS: ${{ needs.preflight.outputs.skipped_envs }}
           SOURCE_VERSION: ${{ needs.preflight.outputs.source_version }}
-          GITHUB_TOKEN: CASCADE_STATE_TOKEN
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           IFS=',' read -ra ENVS <<< "$SKIPPED_ENVS"
           for ENV in "${ENVS[@]}"; do
@@ -371,12 +371,12 @@ jobs:
           tag: ${{ steps.release-data.outputs.sem_version }}
           delete_tag: ${{ steps.release-data.outputs.rc_version }}
           changelog: ${{ steps.changelog.outputs.changelog }}
-          token: CASCADE_STATE_TOKEN
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Finalize Promotion
         if: ${{ github.event.inputs.dry_run != 'true' }}
         env:
           GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
-          GITHUB_TOKEN: CASCADE_STATE_TOKEN
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PROMOTION_RESULT: ${{ needs.preflight.outputs.promotion_result }}
           DEPLOY_RESULT_APP: ${{ needs.deploy-app.result }}
         run: |
