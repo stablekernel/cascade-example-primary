@@ -16,6 +16,11 @@ on:
   schedule:
     - cron: '0 6 * * 1'  # Weekly Monday 6am UTC
 
+permissions:
+  contents: write
+  actions: write
+  pull-requests: write
+
 env:
   GITHUB_TOKEN: ${{ secrets.CASCADE_STATE_TEST_TOKEN }}
   CASCADE_STATE_TEST_TOKEN: ${{ secrets.CASCADE_STATE_TEST_TOKEN }}
@@ -65,16 +70,47 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
 
-      - name: Commit dummy src change
+      - name: Seed src change via pull request (emulates a real user)
+        id: seed
+        env:
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TEST_TOKEN }}
         run: |
+          set -euo pipefail
+          git config user.name "scenario-suite"
+          git config user.email "scenario-suite@users.noreply.github.com"
+
+          # Unique branch so re-runs never collide.
+          BRANCH="scenario/src-$(date +%s)-$RANDOM"
+          git fetch origin main --quiet
+          git checkout -B "$BRANCH" origin/main
+
+          # The user code change - MUST touch src/** to match orchestrate's path filter.
           mkdir -p src
           echo "timestamp=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > src/version.txt
           git add src/version.txt
-          git commit -m "test: dummy src change for scenario test [skip ci]"
-          git push origin main
+
+          # Commit message is cosmetic under squash; the PR title carries the
+          # conventional type. No [skip ci]/[ci skip] anywhere or orchestrate is cancelled.
+          git commit -m "feat: dummy src change for scenario test"
+          git push origin "$BRANCH"
+
+          # Open + squash-merge with the PAT so the merge is PAT-authored and the
+          # on: push event fires. Title => squashed commit subject => version bump.
+          gh pr create --base main --head "$BRANCH" \
+            --title "feat: dummy src change for scenario test" \
+            --body "Automated scenario run; drives orchestrate on merge."
+          gh pr merge "$BRANCH" --squash --delete-branch
+
+          # Capture the exact merge SHA on trunk - the key for the wait loop.
+          git fetch origin main --quiet
+          MERGE_SHA=$(git rev-parse origin/main)
+          echo "merge_sha=$MERGE_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Wait for orchestrate to complete
         id: wait_orchestrate
+        env:
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TEST_TOKEN }}
+          MERGE_SHA: ${{ steps.seed.outputs.merge_sha }}
         run: |
           MAX_ATTEMPTS=40
           SLEEP_DURATION=15
@@ -82,19 +118,20 @@ jobs:
           RUN_ID=""
           while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
             RUN_ID=$(gh run list --workflow=orchestrate.yaml --branch=main \
-              --status=completed --limit=1 \
-              --json=databaseId --jq='.[0].databaseId // empty' 2>/dev/null || echo "")
+              --json=databaseId,headSha,status \
+              --jq=".[] | select(.headSha==\"$MERGE_SHA\") | .databaseId" 2>/dev/null | head -n1)
             if [ -n "$RUN_ID" ]; then
-              echo "Found completed orchestrate run: $RUN_ID"
+              echo "Found orchestrate run for merge $MERGE_SHA: $RUN_ID"
               break
             fi
             ATTEMPT=$((ATTEMPT + 1))
             [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ] && sleep "$SLEEP_DURATION"
           done
           if [ -z "$RUN_ID" ]; then
-            echo "::error::orchestrate.yaml run did not complete within timeout"
+            echo "::error::no orchestrate.yaml run for merge $MERGE_SHA within timeout"
             exit 1
           fi
+          gh run watch "$RUN_ID" --exit-status
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
       - name: Assert external uses callback ran (synchronous cross-repo)
