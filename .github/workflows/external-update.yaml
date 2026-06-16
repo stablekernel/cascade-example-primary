@@ -60,13 +60,20 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Update External State
+        env:
+          SOURCE_REPO: ${{ inputs.source_repo }}
+          DEPLOY_NAME: ${{ inputs.deploy_name }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          SHA: ${{ inputs.sha }}
+          VERSION: ${{ inputs.version }}
+          ARTIFACTS: ${{ inputs.artifacts }}
         run: |
           cascade external update \
             --config .github/manifest.yaml \
             --manifest-key ci \
-            --source-repo "${{ inputs.source_repo }}" \
-            --deploy-name "${{ inputs.deploy_name }}" \
-            --environment "${{ inputs.environment }}" \
-            --sha "${{ inputs.sha }}" \
-            --version "${{ inputs.version }}" \
-            --artifacts '${{ inputs.artifacts }}'
+            --source-repo "$SOURCE_REPO" \
+            --deploy-name "$DEPLOY_NAME" \
+            --environment "$ENVIRONMENT" \
+            --sha "$SHA" \
+            --version "$VERSION" \
+            --artifacts "$ARTIFACTS"

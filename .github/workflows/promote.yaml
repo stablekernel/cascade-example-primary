@@ -54,6 +54,10 @@ on:
         description: 'Revert successful deploys if any fails (atomic promotion)'
         type: boolean
         default: true
+      allow_downgrade:
+        description: 'Permit promoting an older version (downgrade); prod always requires this'
+        type: boolean
+        default: false
       # Per-deploy selection (deprecated, use 'deploys' input instead)
       deploy_app:
         description: '[Deprecated] Include app deployment'
@@ -77,6 +81,8 @@ jobs:
       target_env: ${{ steps.preflight.outputs.target_env }}
       source_sha: ${{ steps.preflight.outputs.source_sha }}
       source_version: ${{ steps.preflight.outputs.source_version }}
+      source_image_tag: ${{ steps.preflight.outputs.source_image_tag }}
+      source_image_digest: ${{ steps.preflight.outputs.source_image_digest }}
       changelog_base_sha: ${{ steps.preflight.outputs.changelog_base_sha }}
       rollback_sha: ${{ steps.preflight.outputs.rollback_sha }}
       rollback_on_failure: ${{ steps.preflight.outputs.rollback_on_failure }}
@@ -111,6 +117,7 @@ jobs:
           ALLOW_BREAKING: ${{ github.event.inputs.allow_breaking_changes }}
           DEPLOYS: ${{ github.event.inputs.deploys }}
           ROLLBACK_ON_FAILURE: ${{ github.event.inputs.rollback_on_failure }}
+          ALLOW_DOWNGRADE: ${{ github.event.inputs.allow_downgrade }}
           DEPLOY_APP: ${{ github.event.inputs.deploy_app }}
         run: |
           cascade promote preflight \
@@ -120,6 +127,7 @@ jobs:
             --allow-breaking="${ALLOW_BREAKING:-false}" \
             --deploys="${DEPLOYS:-all}" \
             --rollback-on-failure="${ROLLBACK_ON_FAILURE:-true}" \
+            --allow-downgrade="${ALLOW_DOWNGRADE:-false}" \
             --gha-output
       - name: Fail if Cannot Proceed
         if: steps.preflight.outputs.can_proceed == 'false'
@@ -138,9 +146,11 @@ jobs:
           token: CASCADE_STATE_TEST_TOKEN
           version: v0.1.0
       - name: Validate Promotion
+        env:
+          MODE: ${{ github.event.inputs.mode }}
         run: |
           echo "Promotion validated by preflight job"
-          echo "Mode: ${{ github.event.inputs.mode }}"
+          echo "Mode: $MODE"
           echo "Source: ${{ needs.preflight.outputs.source_env }}"
           echo "Final Env: ${{ needs.preflight.outputs.target_env }}"
           echo "::notice::Promotion validation completed successfully"
@@ -153,7 +163,6 @@ jobs:
     with:
       environment: ${{ needs.preflight.outputs.target_env }}
       sha: ${{ needs.preflight.outputs.source_sha }}
-    secrets: inherit
 
   deploy-app-prod:
     name: Deploy app (prod)
@@ -163,7 +172,6 @@ jobs:
     with:
       environment: prod
       sha: ${{ needs.preflight.outputs.prod_sha }}
-    secrets: inherit
 
   deploy-artifact-a:
     name: Deploy artifact-a (external)
@@ -173,7 +181,6 @@ jobs:
     with:
       environment: ${{ needs.preflight.outputs.target_env }}
       sha: ${{ needs.preflight.outputs.source_sha }}
-    secrets: inherit
 
   deploy-artifact-a-prod:
     name: Deploy artifact-a (prod, external)
@@ -183,7 +190,6 @@ jobs:
     with:
       environment: prod
       sha: ${{ needs.preflight.outputs.prod_sha }}
-    secrets: inherit
 
   deploy-artifact-b:
     name: Deploy artifact-b (external)
@@ -193,7 +199,6 @@ jobs:
     with:
       environment: ${{ needs.preflight.outputs.target_env }}
       sha: ${{ needs.preflight.outputs.source_sha }}
-    secrets: inherit
 
   deploy-artifact-b-prod:
     name: Deploy artifact-b (prod, external)
@@ -203,7 +208,6 @@ jobs:
     with:
       environment: prod
       sha: ${{ needs.preflight.outputs.prod_sha }}
-    secrets: inherit
 
   # Rollback jobs - revert successful deploys if any deploy fails
   rollback-app:
@@ -219,7 +223,6 @@ jobs:
     with:
       environment: ${{ needs.preflight.outputs.target_env }}
       sha: ${{ needs.preflight.outputs.rollback_sha }}
-    secrets: inherit
 
   rollback-artifact-a:
     name: Rollback artifact-a (external)
@@ -234,7 +237,6 @@ jobs:
     with:
       environment: ${{ needs.preflight.outputs.target_env }}
       sha: ${{ needs.preflight.outputs.rollback_sha }}
-    secrets: inherit
 
   rollback-artifact-b:
     name: Rollback artifact-b (external)
@@ -249,7 +251,6 @@ jobs:
     with:
       environment: ${{ needs.preflight.outputs.target_env }}
       sha: ${{ needs.preflight.outputs.rollback_sha }}
-    secrets: inherit
 
   finalize:
     name: Finalize
