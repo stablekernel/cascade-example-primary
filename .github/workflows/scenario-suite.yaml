@@ -47,12 +47,26 @@ jobs:
         run: |
           yq eval '.ci.state = {}' -i .github/manifest.yaml
           git add -A
-          git diff --cached --quiet || git commit -m "chore: reset state for scenario test [skip ci]"
+          git diff --cached --quiet || git commit --no-gpg-sign -m "chore: reset state for scenario test [skip ci]"
           git push origin main
+
+      - name: Clean slate - delete leftover releases and tags
+        env:
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
+        run: |
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 200 --json tagName --jq '.[].tagName' \
+            | while read -r t; do gh release delete "$t" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag 2>/dev/null || true; done
+          git fetch --tags --quiet || true
+          for t in $(git tag -l 'v*' 'rel-*'); do git push origin --delete "$t" 2>/dev/null || true; done
 
       - name: Verify reset
         run: |
-          git log --oneline | grep "reset state for scenario test" || exit 1
+          state="$(yq eval '.ci.state' .github/manifest.yaml)"
+          if [ "$state" != "{}" ] && [ -n "$state" ] && [ "$state" != "null" ]; then
+            echo "::error::manifest ci.state is not clean: $state"
+            exit 1
+          fi
+          echo "manifest state is clean"
 
   merge-and-build:
     name: Commit in primary - prerelease + external slots
@@ -91,7 +105,7 @@ jobs:
 
           # Commit message is cosmetic under squash; the PR title carries the
           # conventional type. No [skip ci]/[ci skip] anywhere or orchestrate is cancelled.
-          git commit -m "feat: dummy src change for scenario test"
+          git commit --no-gpg-sign -m "feat: dummy src change for scenario test"
           git push origin "$BRANCH"
 
           # Open + squash-merge with the PAT so the merge is PAT-authored and the
