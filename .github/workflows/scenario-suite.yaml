@@ -219,6 +219,14 @@ jobs:
           B_SHA="b$(date +%s)0002"
           echo "A_SHA=$A_SHA" >> "$GITHUB_ENV"
           echo "B_SHA=$B_SHA" >> "$GITHUB_ENV"
+          # Record a dispatch boundary so the wait step only counts runs from
+          # THIS scenario. Without it, gh run list matches stale external-update
+          # runs from prior suite iterations (a leftover failure from an earlier
+          # run aborts this one even though both fresh dispatches succeed).
+          # Back-date 60s to absorb runner/API clock skew at the boundary.
+          DISPATCH_SINCE=$(date -u -d '60 seconds ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+            || date -u -v-60S +%Y-%m-%dT%H:%M:%SZ)
+          echo "DISPATCH_SINCE=$DISPATCH_SINCE" >> "$GITHUB_ENV"
           # Fire both dispatches back-to-back so they race on the shared manifest.
           # The generated external-update.yaml serializes them via the
           # cascade-manifest concurrency group (cancel-in-progress: false).
@@ -246,23 +254,27 @@ jobs:
           # completed runs masks a dropped slot. Require two successes and fail
           # loudly (surfacing any failed run) if a dispatch did not commit its
           # state, rather than racing the assertion against a half-written tree.
+          # Scope every query to runs created at/after the dispatch boundary so
+          # stale runs from earlier suite iterations cannot satisfy the success
+          # count or trip the failure guard.
           MAX_ATTEMPTS=40
           SLEEP_DURATION=15
           ATTEMPT=0
           while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
             SUCCEEDED=$(gh run list --workflow=external-update.yaml --branch=main \
-              --status=success --limit=2 \
+              --status=success --created=">=$DISPATCH_SINCE" --limit=10 \
               --json=databaseId --jq='length' 2>/dev/null || echo 0)
             if [ "$SUCCEEDED" -ge 2 ]; then
               echo "Both External Update runs succeeded"
               break
             fi
             FAILED=$(gh run list --workflow=external-update.yaml --branch=main \
-              --status=failure --limit=2 \
+              --status=failure --created=">=$DISPATCH_SINCE" --limit=10 \
               --json=databaseId --jq='length' 2>/dev/null || echo 0)
             if [ "$FAILED" -ge 1 ]; then
               echo "::error::An External Update run failed (concurrent state push not absorbed)."
-              gh run list --workflow=external-update.yaml --branch=main --limit 4 || true
+              gh run list --workflow=external-update.yaml --branch=main \
+                --created=">=$DISPATCH_SINCE" --limit 4 || true
               exit 1
             fi
             ATTEMPT=$((ATTEMPT + 1))
