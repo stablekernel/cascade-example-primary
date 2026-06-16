@@ -51,7 +51,7 @@ jobs:
       - name: Setup CLI
         uses: stablekernel/cascade/.github/actions/setup-cli@v0.1.0
         with:
-          token: CASCADE_STATE_TEST_TOKEN
+          token: CASCADE_STATE_TOKEN
           version: v0.1.0
 
       - name: Configure Git

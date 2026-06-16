@@ -61,7 +61,7 @@ jobs:
       - name: Setup CLI
         uses: stablekernel/cascade/.github/actions/setup-cli@v0.1.0
         with:
-          token: CASCADE_STATE_TEST_TOKEN
+          token: CASCADE_STATE_TOKEN
           version: v0.1.0
       - name: Resolve Target
         id: preflight
@@ -101,12 +101,12 @@ jobs:
       - name: Setup CLI
         uses: stablekernel/cascade/.github/actions/setup-cli@v0.1.0
         with:
-          token: CASCADE_STATE_TEST_TOKEN
+          token: CASCADE_STATE_TOKEN
           version: v0.1.0
       - name: Finalize Rollback
         env:
-          GH_TOKEN: ${{ secrets.CASCADE_STATE_TEST_TOKEN }}
-          GITHUB_TOKEN: CASCADE_STATE_TEST_TOKEN
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
+          GITHUB_TOKEN: CASCADE_STATE_TOKEN
           GITHUB_REPOSITORY: ${{ github.repository }}
           DEPLOYABLE: ${{ github.event.inputs.deployable }}
           DEPLOY_RESULT_APP: ${{ needs.deploy-app.result }}
