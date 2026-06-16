@@ -2,7 +2,7 @@ ci:
   config:
     schema_version: 1
     trunk_branch: main
-    cli_version: v1.0.0-rc.12
+    cli_version: v1.0.0-rc.13
     state_token: ${{ secrets.CASCADE_STATE_TOKEN }}
     manifest_file: .github/manifest.yaml
     manifest_key: ci
