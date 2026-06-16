@@ -239,30 +239,46 @@ jobs:
             -f artifacts='{"artifact_name":"widget-b-'"$B_SHA"'"}' \
             --ref main
 
-      - name: Wait for both External Update runs to complete
+      - name: Wait for both External Update runs to succeed
         run: |
+          # Both dispatched external-update runs must reach SUCCESS, not merely
+          # "completed". A failed run also reports as completed, so counting
+          # completed runs masks a dropped slot. Require two successes and fail
+          # loudly (surfacing any failed run) if a dispatch did not commit its
+          # state, rather than racing the assertion against a half-written tree.
           MAX_ATTEMPTS=40
           SLEEP_DURATION=15
           ATTEMPT=0
           while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
-            DONE=$(gh run list --workflow=external-update.yaml --branch=main \
-              --status=completed --limit=2 \
+            SUCCEEDED=$(gh run list --workflow=external-update.yaml --branch=main \
+              --status=success --limit=2 \
               --json=databaseId --jq='length' 2>/dev/null || echo 0)
-            if [ "$DONE" -ge 2 ]; then
-              echo "Both External Update runs completed"
+            if [ "$SUCCEEDED" -ge 2 ]; then
+              echo "Both External Update runs succeeded"
               break
+            fi
+            FAILED=$(gh run list --workflow=external-update.yaml --branch=main \
+              --status=failure --limit=2 \
+              --json=databaseId --jq='length' 2>/dev/null || echo 0)
+            if [ "$FAILED" -ge 1 ]; then
+              echo "::error::An External Update run failed (concurrent state push not absorbed)."
+              gh run list --workflow=external-update.yaml --branch=main --limit 4 || true
+              exit 1
             fi
             ATTEMPT=$((ATTEMPT + 1))
             [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ] && sleep "$SLEEP_DURATION"
           done
           if [ "$ATTEMPT" -ge "$MAX_ATTEMPTS" ]; then
-            echo "::error::External Update runs did not both complete within timeout"
+            echo "::error::External Update runs did not both succeed within timeout"
             exit 1
           fi
 
       - name: Assert both sources absorbed with no loss (serialized)
         run: |
-          git pull --rebase origin main
+          # Hard-reset to trunk so the read reflects both committed state pushes,
+          # not a stale or partially-rebased local tree.
+          git fetch origin main --quiet
+          git reset --hard origin/main
           A_ABSORBED_SHA=$(yq eval '.ci.state.staging.external.artifact-a.sha // ""' .github/manifest.yaml)
           A_ABSORBED_VER=$(yq eval '.ci.state.staging.external.artifact-a.version // ""' .github/manifest.yaml)
           B_ABSORBED_SHA=$(yq eval '.ci.state.staging.external.artifact-b.sha // ""' .github/manifest.yaml)
