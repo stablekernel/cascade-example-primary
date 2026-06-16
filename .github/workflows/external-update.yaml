@@ -49,10 +49,10 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.8
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.9
         with:
           token: CASCADE_STATE_TOKEN
-          version: v1.0.0-rc.8
+          version: v1.0.0-rc.9
 
       - name: Configure Git
         run: |

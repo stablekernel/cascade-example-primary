@@ -105,10 +105,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.8
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.9
         with:
           token: CASCADE_STATE_TOKEN
-          version: v1.0.0-rc.8
+          version: v1.0.0-rc.9
       - name: Run Preflight
         id: preflight
         env:
@@ -141,10 +141,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.8
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.9
         with:
           token: CASCADE_STATE_TOKEN
-          version: v1.0.0-rc.8
+          version: v1.0.0-rc.9
       - name: Validate Promotion
         env:
           MODE: ${{ github.event.inputs.mode }}
@@ -262,10 +262,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.8
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.9
         with:
           token: CASCADE_STATE_TOKEN
-          version: v1.0.0-rc.8
+          version: v1.0.0-rc.9
       - name: Generate Changelog
         id: changelog
         env:
@@ -372,23 +372,6 @@ jobs:
           delete_tag: ${{ steps.release-data.outputs.rc_version }}
           changelog: ${{ steps.changelog.outputs.changelog }}
           token: CASCADE_STATE_TOKEN
-      - name: Trigger Release Build
-        if: ${{ github.event.inputs.dry_run != 'true' && needs.preflight.outputs.is_final_env == 'true' }}
-        env:
-          GITHUB_TOKEN: CASCADE_STATE_TOKEN
-          TAG: ${{ steps.release-data.outputs.sem_version }}
-        run: |
-          # Only dispatch on real GitHub. In act/gitea e2e environments
-          # GITHUB_SERVER_URL is http://gitea:3000 and the Release workflow
-          # doesn't exist, so skip silently.
-          if [[ "$GITHUB_SERVER_URL" != "https://github.com" ]]; then
-            echo "Skipping Release dispatch (not running on github.com: $GITHUB_SERVER_URL)"
-            exit 0
-          fi
-          gh workflow run Release \
-            --repo "${{ github.repository }}" \
-            --ref "$TAG"
-
       - name: Finalize Promotion
         if: ${{ github.event.inputs.dry_run != 'true' }}
         env:
