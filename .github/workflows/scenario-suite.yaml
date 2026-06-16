@@ -371,12 +371,29 @@ jobs:
             exit 1
           fi
 
-      - name: Assert prod populated, release published, external state preserved
+      - name: Assert release published, external state preserved
         run: |
-          git pull --rebase origin main
-          PROD_VERSION=$(yq eval '.ci.state.prod.version // ""' .github/manifest.yaml)
-          if [ -z "$PROD_VERSION" ] || ! echo "$PROD_VERSION" | grep -qE 'v?[0-9]+\.[0-9]+\.[0-9]+'; then
-            echo "::error::prod.version missing or not semver: '$PROD_VERSION'"
+          # In a [staging, prod] topology the terminal promotion publishes the
+          # release and records the version under the .ci.state.release marker
+          # (cascade's published-version marker), not under the per-environment
+          # prod deploy slot. The final env emits no deploy jobs, so
+          # .ci.state.prod stays empty by design; assert the release marker
+          # carries the published semver instead.
+          #
+          # finalize pushes its state commit shortly after the promote run
+          # reports completed, so poll-pull until the marker lands on main.
+          MAX_ATTEMPTS=30
+          ATTEMPT=0
+          RELEASE_VERSION=""
+          while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
+            git pull --rebase origin main --quiet || true
+            RELEASE_VERSION=$(yq eval '.ci.state.release.version // ""' .github/manifest.yaml)
+            [ -n "$RELEASE_VERSION" ] && break
+            ATTEMPT=$((ATTEMPT + 1))
+            sleep 5
+          done
+          if [ -z "$RELEASE_VERSION" ] || ! echo "$RELEASE_VERSION" | grep -qE 'v?[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::.ci.state.release.version missing or not semver: '$RELEASE_VERSION'"
             exit 1
           fi
           # External source state must survive the promote (no loss across stages).
@@ -392,7 +409,7 @@ jobs:
             echo "::error::release $RELEASE_TAG still prerelease after promote"
             exit 1
           fi
-          echo "OK: prod=$PROD_VERSION release=$RELEASE_TAG published; external state preserved"
+          echo "OK: release marker=$RELEASE_VERSION tag=$RELEASE_TAG published; external state preserved"
 
       - name: Final snapshot (all envs + all external sources + release)
         if: always()
