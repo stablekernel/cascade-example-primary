@@ -46,8 +46,8 @@ jobs:
       - name: Reset manifest state
         run: |
           yq eval '.ci.state = {}' -i .github/manifest.yaml
-          git add .github/manifest.yaml
-          git commit -m "chore: reset state for scenario test [skip ci]"
+          git add -A
+          git diff --cached --quiet || git commit -m "chore: reset state for scenario test [skip ci]"
           git push origin main
 
       - name: Verify reset
