@@ -67,9 +67,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.20
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.21
         with:
-          version: v1.0.0-rc.20
+          version: v1.0.0-rc.21
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
@@ -110,9 +110,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.20
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.21
         with:
-          version: v1.0.0-rc.20
+          version: v1.0.0-rc.21
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
@@ -206,9 +206,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.20
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.21
         with:
-          version: v1.0.0-rc.20
+          version: v1.0.0-rc.21
       - name: Validate manifest
         run: |
           MANIFEST_FILE=".github/manifest.yaml"
@@ -312,15 +312,15 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.20
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.21
         with:
-          version: v1.0.0-rc.20
+          version: v1.0.0-rc.21
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
       - name: Finalize hotfix
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
