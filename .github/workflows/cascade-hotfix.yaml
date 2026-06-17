@@ -67,9 +67,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.16
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.17
         with:
-          version: v1.0.0-rc.16
+          version: v1.0.0-rc.17
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
@@ -110,9 +110,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.16
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.17
         with:
-          version: v1.0.0-rc.16
+          version: v1.0.0-rc.17
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
@@ -153,7 +153,10 @@ jobs:
               --label cascade-hotfix \
               --title "hotfix(${TARGET_ENV}): cherry-pick ${SHORT_SHA}" \
               --body "$BODY"
-            gh pr merge --auto --squash "$BRANCH"
+            if ! gh pr merge --auto --squash "$BRANCH"; then
+              echo "::notice::auto-merge unavailable (branch likely unprotected); merging directly"
+              gh pr merge --squash --delete-branch "$BRANCH"
+            fi
           else
             echo "::warning::Cherry-pick conflicted; opening resolution PR for manual resolve"
             CONFLICTS=$(git diff --name-only --diff-filter=U)
@@ -177,9 +180,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.16
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.17
         with:
-          version: v1.0.0-rc.16
+          version: v1.0.0-rc.17
       - name: Validate manifest
         run: |
           MANIFEST_FILE=".github/manifest.yaml"
@@ -283,9 +286,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.16
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.17
         with:
-          version: v1.0.0-rc.16
+          version: v1.0.0-rc.17
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
