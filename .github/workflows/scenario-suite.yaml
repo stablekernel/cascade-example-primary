@@ -126,8 +126,8 @@ jobs:
           GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
           MERGE_SHA: ${{ steps.seed.outputs.merge_sha }}
         run: |
-          MAX_ATTEMPTS=40
-          SLEEP_DURATION=15
+          MAX_ATTEMPTS=10
+          SLEEP_DURATION=60
           ATTEMPT=0
           RUN_ID=""
           while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
@@ -145,7 +145,7 @@ jobs:
             echo "::error::no orchestrate.yaml run for merge $MERGE_SHA within timeout"
             exit 1
           fi
-          gh run watch "$RUN_ID" --exit-status
+          gh run watch "$RUN_ID" --exit-status --interval 60
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
       - name: Assert staging populated and draft release created
@@ -194,7 +194,7 @@ jobs:
           # prior step already waited to success and pulled, so the slot is on
           # disk; poll-pull a few times only to absorb push/replication lag.
           EXPECT="artifact-a-${MERGE_SHA}"
-          MAX_ATTEMPTS=12
+          MAX_ATTEMPTS=2
           ATTEMPT=0
           ARTIFACT_ID=""
           while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
@@ -202,7 +202,7 @@ jobs:
             ARTIFACT_ID=$(yq eval '.ci.state.staging.builds.sharedlib.artifact_id // ""' .github/manifest.yaml)
             [ -n "$ARTIFACT_ID" ] && break
             ATTEMPT=$((ATTEMPT + 1))
-            sleep 5
+            sleep 60
           done
           if [ -z "$ARTIFACT_ID" ]; then
             echo "::error::cross-repo build slot .ci.state.staging.builds.sharedlib.artifact_id is empty after a successful orchestrate (cross-repo artifact consolidation defect)"
@@ -291,8 +291,8 @@ jobs:
           # Scope every query to runs created at/after the dispatch boundary so
           # stale runs from earlier suite iterations cannot satisfy the success
           # count or trip the failure guard.
-          MAX_ATTEMPTS=40
-          SLEEP_DURATION=15
+          MAX_ATTEMPTS=10
+          SLEEP_DURATION=60
           ATTEMPT=0
           while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
             SUCCEEDED=$(gh run list --workflow=external-update.yaml --branch=main \
@@ -395,8 +395,8 @@ jobs:
           # the recorded boundary), then watch THAT id to completion and require
           # conclusion==success. Counting any "completed" run masks a failed
           # promotion, so assert success explicitly.
-          MAX_ATTEMPTS=30
-          SLEEP_DURATION=15
+          MAX_ATTEMPTS=8
+          SLEEP_DURATION=60
           ATTEMPT=0
           RUN_ID=""
           while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
@@ -414,7 +414,7 @@ jobs:
             echo "::error::promote.yaml run for this dispatch did not appear within timeout"
             exit 1
           fi
-          gh run watch "$RUN_ID" --exit-status
+          gh run watch "$RUN_ID" --exit-status --interval 60
 
       - name: Assert release published, external state preserved
         run: |
@@ -427,7 +427,7 @@ jobs:
           #
           # finalize pushes its state commit shortly after the promote run
           # reports completed, so poll-pull until the marker lands on main.
-          MAX_ATTEMPTS=30
+          MAX_ATTEMPTS=3
           ATTEMPT=0
           RELEASE_VERSION=""
           while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
@@ -435,7 +435,7 @@ jobs:
             RELEASE_VERSION=$(yq eval '.ci.state.release.version // ""' .github/manifest.yaml)
             [ -n "$RELEASE_VERSION" ] && break
             ATTEMPT=$((ATTEMPT + 1))
-            sleep 5
+            sleep 60
           done
           if [ -z "$RELEASE_VERSION" ] || ! echo "$RELEASE_VERSION" | grep -qE 'v?[0-9]+\.[0-9]+\.[0-9]+'; then
             echo "::error::.ci.state.release.version missing or not semver: '$RELEASE_VERSION'"
