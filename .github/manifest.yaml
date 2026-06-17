@@ -7,7 +7,7 @@ ci:
         environments:
             - staging
             - prod
-        cli_version: v1.0.0-rc.20
+        cli_version: v1.0.0-rc.21
         state_token: ${{ secrets.CASCADE_STATE_TOKEN }}
         manifest_file: .github/manifest.yaml
         manifest_key: ci
