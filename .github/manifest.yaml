@@ -35,18 +35,4 @@ ci:
           - name: artifact-b
             workflow: .github/workflows/deploy-artifact-b.yaml
             triggers: []
-  state:
-    staging:
-      sha: 6c404555fc0af2dbf2aaba9877d9b03ded336d7a
-      version: v0.1.0-rc.0
-      committed_at: "2026-06-17T04:50:42Z"
-      committed_by: joshua-temple
-      deploys:
-        app:
-          sha: 6c404555fc0af2dbf2aaba9877d9b03ded336d7a
-          deployed_at: "2026-06-17T04:50:42Z"
-          deployed_by: joshua-temple
-      builds:
-        sharedlib:
-          sha: 6c404555fc0af2dbf2aaba9877d9b03ded336d7a
-          artifact_id: artifact-a-6c404555fc0af2dbf2aaba9877d9b03ded336d7a
+  state: {}
