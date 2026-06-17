@@ -17,6 +17,10 @@ on:
         description: Version from the source repo
         required: false
         type: string
+      deploy_name:
+        description: Component slot the receiver scoped this deploy to (#213 deploy-on-update)
+        required: false
+        type: string
     outputs:
       deploy_url:
         description: URL of the tracked artifact
@@ -33,7 +37,10 @@ jobs:
           ENVIRONMENT: ${{ inputs.environment }}
           SHA: ${{ inputs.sha }}
           VERSION: ${{ inputs.version }}
+          DEPLOY_NAME: ${{ inputs.deploy_name }}
         run: |
           echo "Tracking artifact-a version=${VERSION:-dev} sha=${SHA:-local} env=${ENVIRONMENT}"
+          # Deterministic deploy marker for the deploy-on-update fleet assertion (#213).
+          echo "CASCADE_DEPLOY_MARKER deploy_name=${DEPLOY_NAME:-artifact-a} version=${VERSION:-dev} sha=${SHA:-local}"
           sleep 2
           echo "deploy_url=https://example.com/artifact-a/${ENVIRONMENT}/${SHA:-local}" >> "$GITHUB_OUTPUT"
