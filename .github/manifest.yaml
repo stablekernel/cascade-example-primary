@@ -7,7 +7,7 @@ ci:
         environments:
             - staging
             - prod
-        cli_version: v1.0.0-rc.22
+        cli_version: v0.2.0-rc.55
         state_token: ${{ secrets.CASCADE_STATE_TOKEN }}
         manifest_file: .github/manifest.yaml
         manifest_key: ci
@@ -28,11 +28,17 @@ ci:
               deploys:
                 - name: artifact-a
                   workflow: .github/workflows/deploy-artifact-a.yaml
+                  on_update:
+                    deploy:
+                        workflow: .github/workflows/deploy-artifact-a.yaml
             - repo: stablekernel/cascade-example-artifact-b
               ref: main
               deploys:
                 - name: artifact-b
                   workflow: .github/workflows/deploy-artifact-b.yaml
+                  on_update:
+                    deploy:
+                        workflow: .github/workflows/deploy-artifact-b.yaml
     state:
         prod: {}
         release:

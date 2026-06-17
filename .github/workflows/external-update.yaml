@@ -49,10 +49,10 @@ jobs:
           token: ${{ secrets.CASCADE_STATE_TOKEN }}
 
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.22
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.2.0-rc.55
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          version: v1.0.0-rc.22
+          version: v0.2.0-rc.55
 
       - name: Configure Git
         run: |
@@ -77,3 +77,27 @@ jobs:
             --sha "$SHA" \
             --version "$VERSION" \
             --artifacts "$ARTIFACTS"
+
+  deploy_artifact-a:
+    name: Deploy artifact-a
+    needs: update
+    if: ${{ needs.update.result == 'success' && inputs.deploy_name == 'artifact-a' }}
+    uses: ./.github/workflows/deploy-artifact-a.yaml
+    with:
+      environment: ${{ inputs.environment }}
+      sha: ${{ inputs.sha }}
+      version: ${{ inputs.version }}
+      deploy_name: ${{ inputs.deploy_name }}
+    secrets: inherit
+
+  deploy_artifact-b:
+    name: Deploy artifact-b
+    needs: update
+    if: ${{ needs.update.result == 'success' && inputs.deploy_name == 'artifact-b' }}
+    uses: ./.github/workflows/deploy-artifact-b.yaml
+    with:
+      environment: ${{ inputs.environment }}
+      sha: ${{ inputs.sha }}
+      version: ${{ inputs.version }}
+      deploy_name: ${{ inputs.deploy_name }}
+    secrets: inherit

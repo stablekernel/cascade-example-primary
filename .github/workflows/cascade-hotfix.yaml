@@ -67,9 +67,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.22
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.2.0-rc.55
         with:
-          version: v1.0.0-rc.22
+          version: v0.2.0-rc.55
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
@@ -110,9 +110,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.22
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.2.0-rc.55
         with:
-          version: v1.0.0-rc.22
+          version: v0.2.0-rc.55
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
@@ -206,9 +206,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.22
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.2.0-rc.55
         with:
-          version: v1.0.0-rc.22
+          version: v0.2.0-rc.55
       - name: Validate manifest
         run: |
           MANIFEST_FILE=".github/manifest.yaml"
@@ -312,9 +312,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.22
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.2.0-rc.55
         with:
-          version: v1.0.0-rc.22
+          version: v0.2.0-rc.55
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
