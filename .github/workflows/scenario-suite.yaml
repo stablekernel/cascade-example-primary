@@ -148,7 +148,7 @@ jobs:
           gh run watch "$RUN_ID" --exit-status
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
-      - name: Assert staging populated and prerelease created
+      - name: Assert staging populated and draft release created
         run: |
           git pull --rebase origin main
           STAGING_VERSION=$(yq eval '.ci.state.staging.version // ""' .github/manifest.yaml)
@@ -160,17 +160,21 @@ jobs:
             echo "::error::staging.version is not semver: $STAGING_VERSION"
             exit 1
           fi
+          # Orchestrate publishes the staging RC as a DRAFT release (manage-release
+          # action=update; see internal/release/command.go). The draft is converted
+          # to a pre-release only at promotion time (action=prerelease). So directly
+          # after a build the correct invariant is draft=true, prerelease=false.
           RELEASE_TAG=$(gh release list --limit=1 | tail -1 | awk '{print $1}')
           if [ -z "$RELEASE_TAG" ]; then
             echo "::error::no GitHub release found"
             exit 1
           fi
-          IS_PRERELEASE=$(gh release view "$RELEASE_TAG" --json=isPrerelease --jq='.isPrerelease')
-          if [ "$IS_PRERELEASE" != "true" ]; then
-            echo "::error::release $RELEASE_TAG is not marked prerelease"
+          IS_DRAFT=$(gh release view "$RELEASE_TAG" --json=isDraft --jq='.isDraft')
+          if [ "$IS_DRAFT" != "true" ]; then
+            echo "::error::release $RELEASE_TAG is not a draft after build (got isDraft=$IS_DRAFT)"
             exit 1
           fi
-          echo "OK: staging=$STAGING_VERSION release=$RELEASE_TAG prerelease=$IS_PRERELEASE"
+          echo "OK: staging=$STAGING_VERSION release=$RELEASE_TAG draft=$IS_DRAFT"
 
       - name: Assert cross-repo build artifact consolidated into state
         env:
