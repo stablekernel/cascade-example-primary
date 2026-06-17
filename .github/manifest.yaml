@@ -38,6 +38,11 @@ ci:
             cancel_in_progress: false
     state:
         prod: {}
+        release:
+            sha: 5dc29c4300e7fe8d32888a1603bd498e8b9b5cea
+            version: v0.1.0
+            committed_at: "2026-06-17T15:20:14Z"
+            committed_by: joshua-temple
         staging:
             sha: 5dc29c4300e7fe8d32888a1603bd498e8b9b5cea
             version: v0.1.0-rc.0
@@ -71,6 +76,6 @@ ci:
                         artifact_name: widget-b-b17817095250002
     latest_release:
         version: v0.1.0
-        sha: b6fd46ce2ee8125f7072a8a390ed76d263d2cfc7
-        released_on: "2026-06-17T14:21:48Z"
+        sha: 5dc29c4300e7fe8d32888a1603bd498e8b9b5cea
+        released_on: "2026-06-17T15:20:14Z"
         released_by: joshua-temple
