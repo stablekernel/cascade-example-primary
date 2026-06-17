@@ -105,10 +105,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.17
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.19
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          version: v1.0.0-rc.17
+          version: v1.0.0-rc.19
       - name: Run Preflight
         id: preflight
         env:
@@ -141,10 +141,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.17
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.19
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          version: v1.0.0-rc.17
+          version: v1.0.0-rc.19
       - name: Validate Promotion
         env:
           MODE: ${{ github.event.inputs.mode }}
@@ -262,10 +262,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.17
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.19
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          version: v1.0.0-rc.17
+          version: v1.0.0-rc.19
       - name: Generate Changelog
         id: changelog
         env:

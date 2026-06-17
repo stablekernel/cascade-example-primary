@@ -67,9 +67,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.17
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.19
         with:
-          version: v1.0.0-rc.17
+          version: v1.0.0-rc.19
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
@@ -101,7 +101,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true' && needs.plan.outputs.no_op != 'true'
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
       COMMIT: ${{ github.event.inputs.commit }}
       TARGET_ENV: ${{ github.event.inputs.target_env }}
       BASE_SHA: ${{ needs.plan.outputs.base_sha }}
@@ -110,9 +110,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.17
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.19
         with:
-          version: v1.0.0-rc.17
+          version: v1.0.0-rc.19
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
@@ -153,10 +153,10 @@ jobs:
               --label cascade-hotfix \
               --title "hotfix(${TARGET_ENV}): cherry-pick ${SHORT_SHA}" \
               --body "$BODY"
-            if ! gh pr merge --auto --squash "$BRANCH"; then
-              echo "::notice::auto-merge unavailable (branch likely unprotected); merging directly"
-              gh pr merge --squash --delete-branch "$BRANCH"
-            fi
+            {
+              echo "HOTFIX_BRANCH=$BRANCH"
+              echo "HOTFIX_CLEAN_MERGE=true"
+            } >> "$GITHUB_ENV"
           else
             echo "::warning::Cherry-pick conflicted; opening resolution PR for manual resolve"
             CONFLICTS=$(git diff --name-only --diff-filter=U)
@@ -171,6 +171,32 @@ jobs:
               --title "hotfix(${TARGET_ENV}): cherry-pick ${SHORT_SHA} (conflicts)" \
               --body "$CONFLICT_BODY"
           fi
+      - name: Merge clean resolution PR
+        if: env.HOTFIX_CLEAN_MERGE == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
+          BRANCH: ${{ env.HOTFIX_BRANCH }}
+        run: |
+          ATTEMPTS=20
+          SLEEP=15
+          MERGED=false
+          for i in $(seq 1 "$ATTEMPTS"); do
+            STATE=$(gh pr view "$BRANCH" --json mergeable,mergeStateStatus -q '.mergeable + " " + .mergeStateStatus' 2>/dev/null || echo "UNKNOWN UNKNOWN")
+            MERGEABLE=$(echo "$STATE" | cut -d' ' -f1)
+            STATUS=$(echo "$STATE" | cut -d' ' -f2)
+            echo "::notice::resolution PR mergeable=$MERGEABLE state=$STATUS (attempt $i/$ATTEMPTS)"
+            if [ "$MERGEABLE" = "MERGEABLE" ] && [ "$STATUS" != "BLOCKED" ]; then
+              if gh pr merge --squash --delete-branch "$BRANCH"; then
+                MERGED=true
+                break
+              fi
+            fi
+            sleep "$SLEEP"
+          done
+          if [ "$MERGED" != "true" ]; then
+            echo "::error::Resolution PR for $BRANCH did not become mergeable within the timeout; merge it manually to run the hotfix finalize chain"
+            exit 1
+          fi
   check:
     name: Validate Hotfix PR
     if: github.event_name == 'pull_request' && github.event.pull_request.merged != true
@@ -180,9 +206,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.17
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.19
         with:
-          version: v1.0.0-rc.17
+          version: v1.0.0-rc.19
       - name: Validate manifest
         run: |
           MANIFEST_FILE=".github/manifest.yaml"
@@ -286,9 +312,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.17
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.19
         with:
-          version: v1.0.0-rc.17
+          version: v1.0.0-rc.19
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
