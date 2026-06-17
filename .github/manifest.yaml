@@ -33,9 +33,6 @@ ci:
               deploys:
                 - name: artifact-b
                   workflow: .github/workflows/deploy-artifact-b.yaml
-        concurrency:
-            group: cascade-manifest-${{ github.ref }}
-            cancel_in_progress: false
     state:
         prod: {}
         release:

@@ -23,8 +23,8 @@ on:
         default: false
 
 concurrency:
-  group: cascade-manifest-${{ github.ref }}
-  cancel-in-progress: false
+  group: orchestrate-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write

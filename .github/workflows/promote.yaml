@@ -69,7 +69,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: cascade-manifest-${{ github.ref }}
+  group: "${{ github.workflow }}"
   cancel-in-progress: false
 
 jobs:
