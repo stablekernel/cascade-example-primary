@@ -45,14 +45,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 1
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          token: ${{ secrets.CASCADE_STATE_TOKEN }}
 
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.17
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.19
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          version: v1.0.0-rc.17
+          version: v1.0.0-rc.19
 
       - name: Configure Git
         run: |
