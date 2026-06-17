@@ -260,8 +260,10 @@ jobs:
             || date -u -v-60S +%Y-%m-%dT%H:%M:%SZ)
           echo "DISPATCH_SINCE=$DISPATCH_SINCE" >> "$GITHUB_ENV"
           # Fire both dispatches back-to-back so they race on the shared manifest.
-          # The generated external-update.yaml serializes them via the
-          # cascade-manifest concurrency group (cancel-in-progress: false).
+          # Each external-update run uses a per-component concurrency group
+          # (cascade-external-<deploy_name>-<ref>), so dispatches from distinct
+          # components (artifact-a, artifact-b) run independently and BOTH land
+          # with no cross-cancellation. See cascade #210.
           gh workflow run external-update.yaml \
             -f source_repo="$ARTIFACT_A_REPO" \
             -f deploy_name=artifact-a \
