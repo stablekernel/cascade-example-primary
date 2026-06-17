@@ -42,6 +42,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
   pull-requests: write
   actions: read
 
@@ -66,9 +67,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.15
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.16
         with:
-          version: v1.0.0-rc.15
+          version: v1.0.0-rc.16
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
@@ -109,9 +110,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.15
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.16
         with:
-          version: v1.0.0-rc.15
+          version: v1.0.0-rc.16
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
@@ -129,6 +130,10 @@ jobs:
             echo "::warning::Branch env/${TARGET_ENV} has no required status checks; hotfix auto-merge will NOT be gated by required checks."
             echo "::warning::Configure protection: gh api \"$PROT_PATH\" -X PUT -f required_status_checks.strict=true -F required_status_checks.contexts[]=hotfix-check"
           fi
+      - name: Ensure hotfix labels exist
+        run: |
+          gh label create cascade-hotfix --color B60205 --description "Cascade hotfix resolution PR" || true
+          gh label create cascade-hotfix-conflict --color D93F0B --description "Cascade hotfix resolution PR with cherry-pick conflicts" || true
       - name: Cherry-pick and open resolution PR
         run: |
           SHORT_SHA=$(echo "$COMMIT" | cut -c1-8)
@@ -172,9 +177,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.15
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.16
         with:
-          version: v1.0.0-rc.15
+          version: v1.0.0-rc.16
       - name: Validate manifest
         run: |
           MANIFEST_FILE=".github/manifest.yaml"
@@ -278,9 +283,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.15
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.0.0-rc.16
         with:
-          version: v1.0.0-rc.15
+          version: v1.0.0-rc.16
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
