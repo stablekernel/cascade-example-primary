@@ -36,7 +36,21 @@ ci:
     concurrency:
       group: cascade-manifest-${{ github.ref }}
       cancel_in_progress: false
-  state: {}
+  state:
+    staging:
+      sha: de9df0d910648a8831d6f7c4c9a37960160cdd7b
+      version: v0.1.0-rc.0
+      committed_at: "2026-06-17T16:17:23Z"
+      committed_by: joshua-temple
+      deploys:
+        app:
+          sha: de9df0d910648a8831d6f7c4c9a37960160cdd7b
+          deployed_at: "2026-06-17T16:17:23Z"
+          deployed_by: joshua-temple
+      builds:
+        sharedlib:
+          sha: de9df0d910648a8831d6f7c4c9a37960160cdd7b
+          artifact_id: artifact-a-de9df0d910648a8831d6f7c4c9a37960160cdd7b
   latest_release:
     version: v0.1.0
     sha: 5dc29c4300e7fe8d32888a1603bd498e8b9b5cea
