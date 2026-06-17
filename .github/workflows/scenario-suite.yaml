@@ -178,7 +178,8 @@ jobs:
           fi
           IS_PRERELEASE=$(gh release view "$RELEASE_TAG" --json=isPrerelease --jq='.isPrerelease')
           if [ "$IS_PRERELEASE" != "true" ]; then
-            echo "::warning::release $RELEASE_TAG is not marked prerelease"
+            echo "::error::release $RELEASE_TAG is not marked prerelease"
+            exit 1
           fi
           echo "OK: staging=$STAGING_VERSION release=$RELEASE_TAG prerelease=$IS_PRERELEASE"
 
@@ -347,29 +348,40 @@ jobs:
 
       - name: Dispatch promote workflow
         run: |
+          # Capture a UTC dispatch boundary BEFORE firing so the wait step can
+          # correlate the run THIS scenario started, not a stale promote run from
+          # an earlier suite iteration. Back-date 60s to absorb clock skew.
+          DISPATCH_SINCE=$(date -u -d '60 seconds ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+            || date -u -v-60S +%Y-%m-%dT%H:%M:%SZ)
+          echo "DISPATCH_SINCE=$DISPATCH_SINCE" >> "$GITHUB_ENV"
           gh workflow run promote.yaml -f mode=default --ref main
 
       - name: Wait for promote to complete
         run: |
+          # Resolve the promote run dispatched by THIS scenario (created at/after
+          # the recorded boundary), then watch THAT id to completion and require
+          # conclusion==success. Counting any "completed" run masks a failed
+          # promotion, so assert success explicitly.
           MAX_ATTEMPTS=30
           SLEEP_DURATION=15
           ATTEMPT=0
           RUN_ID=""
           while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
             RUN_ID=$(gh run list --workflow=promote.yaml --branch=main \
-              --status=completed --limit=1 \
+              --created=">=$DISPATCH_SINCE" --limit=1 \
               --json=databaseId --jq='.[0].databaseId // empty' 2>/dev/null || echo "")
             if [ -n "$RUN_ID" ]; then
-              echo "Found completed promote run: $RUN_ID"
+              echo "Found promote run for this dispatch: $RUN_ID"
               break
             fi
             ATTEMPT=$((ATTEMPT + 1))
             [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ] && sleep "$SLEEP_DURATION"
           done
           if [ -z "$RUN_ID" ]; then
-            echo "::error::promote.yaml run did not complete within timeout"
+            echo "::error::promote.yaml run for this dispatch did not appear within timeout"
             exit 1
           fi
+          gh run watch "$RUN_ID" --exit-status
 
       - name: Assert release published, external state preserved
         run: |
