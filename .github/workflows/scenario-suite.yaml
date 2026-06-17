@@ -148,17 +148,6 @@ jobs:
           gh run watch "$RUN_ID" --exit-status
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
-      - name: Assert external uses callback ran (synchronous cross-repo)
-        env:
-          RUN_ID: ${{ steps.wait_orchestrate.outputs.run_id }}
-        run: |
-          gh run view "$RUN_ID" --log > /tmp/orchestrate.log 2>&1 || true
-          if ! grep -qE 'Build \(sharedlib\)|build-sharedlib' /tmp/orchestrate.log; then
-            echo "::error::synchronous external uses: build (sharedlib) leg did not run"
-            exit 1
-          fi
-          echo "OK: synchronous external uses: callback to artifact-a ran"
-
       - name: Assert staging populated and prerelease created
         run: |
           git pull --rebase origin main
@@ -182,6 +171,44 @@ jobs:
             exit 1
           fi
           echo "OK: staging=$STAGING_VERSION release=$RELEASE_TAG prerelease=$IS_PRERELEASE"
+
+      - name: Assert cross-repo build artifact consolidated into state
+        env:
+          MERGE_SHA: ${{ steps.seed.outputs.merge_sha }}
+        run: |
+          # Deterministic proof of the cross-repo @ref build callback. The
+          # orchestrate run calls artifact-a's build-shared.yaml@main with
+          # sha=<setup head_sha> (the trunk merge SHA). That reusable workflow
+          # emits artifact_id=artifact-a-<sha>, which cascade consolidates into
+          # the primary's state at .ci.state.staging.builds.sharedlib.artifact_id
+          # exactly like a local build (generator.go:1472,1530-1534). The build
+          # name "sharedlib" is the manifest builds[].name; the value is the
+          # callback's artifact output, so a populated slot carrying the expected
+          # value proves the cross-repo callback's artifact round-tripped home.
+          #
+          # finalize pushes the build state on the same orchestrate run that the
+          # prior step already waited to success and pulled, so the slot is on
+          # disk; poll-pull a few times only to absorb push/replication lag.
+          EXPECT="artifact-a-${MERGE_SHA}"
+          MAX_ATTEMPTS=12
+          ATTEMPT=0
+          ARTIFACT_ID=""
+          while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
+            git pull --rebase origin main --quiet || true
+            ARTIFACT_ID=$(yq eval '.ci.state.staging.builds.sharedlib.artifact_id // ""' .github/manifest.yaml)
+            [ -n "$ARTIFACT_ID" ] && break
+            ATTEMPT=$((ATTEMPT + 1))
+            sleep 5
+          done
+          if [ -z "$ARTIFACT_ID" ]; then
+            echo "::error::cross-repo build slot .ci.state.staging.builds.sharedlib.artifact_id is empty after a successful orchestrate (cross-repo artifact consolidation defect)"
+            exit 1
+          fi
+          if [ "$ARTIFACT_ID" != "$EXPECT" ]; then
+            echo "::error::cross-repo artifact_id mismatch: want '$EXPECT' got '$ARTIFACT_ID'"
+            exit 1
+          fi
+          echo "OK: cross-repo @ref callback artifact consolidated: sharedlib.artifact_id=$ARTIFACT_ID"
 
       - name: Snapshot manifest (all envs + external sources)
         run: |
