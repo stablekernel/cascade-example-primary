@@ -3,6 +3,8 @@
 
 name: External Update
 
+run-name: External Update ${{ inputs.deploy_name }} ${{ inputs.sha }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -49,10 +51,10 @@ jobs:
           token: ${{ secrets.CASCADE_STATE_TOKEN }}
 
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.2.0-rc.55
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.2.0-rc.56
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          version: v0.2.0-rc.55
+          version: v0.2.0-rc.56
 
       - name: Configure Git
         run: |
