@@ -38,8 +38,7 @@ on:
         default: false
 
 permissions:
-  contents: write
-  actions: write
+  contents: read
 
 concurrency:
   group: "${{ github.workflow }}"
@@ -59,10 +58,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.2.1
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.3.0-rc.20
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          version: v0.2.1
+          token: ${{ secrets.CASCADE_STATE_TOKEN }}
+          version: v0.3.0-rc.20
       - name: Resolve Target
         id: preflight
         env:
@@ -94,19 +93,21 @@ jobs:
     needs: [preflight, deploy-app]
     if: always() && needs.preflight.result == 'success' && github.event.inputs.dry_run != 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.2.1
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.3.0-rc.20
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          version: v0.2.1
+          token: ${{ secrets.CASCADE_STATE_TOKEN }}
+          version: v0.3.0-rc.20
       - name: Finalize Rollback
         env:
           GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           DEPLOYABLE: ${{ github.event.inputs.deployable }}
           DEPLOY_RESULT_APP: ${{ needs.deploy-app.result }}
