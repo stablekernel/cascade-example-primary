@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
   actions: read
 
 jobs:
@@ -51,10 +51,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.2.1
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.3.0-rc.20
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          version: v0.2.1
+          token: ${{ secrets.CASCADE_STATE_TOKEN }}
+          version: v0.3.0-rc.20
       - name: Run Setup
         id: setup
         env:
@@ -101,6 +101,8 @@ jobs:
     if: always() && needs.setup.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write
     outputs:
       app_artifact: ${{ needs.build-app.outputs.artifact }}
       sharedlib_artifact_id: ${{ needs.build-sharedlib.outputs.artifact_id }}
@@ -141,14 +143,14 @@ jobs:
             echo "_No outputs produced_" >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.2.1
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.3.0-rc.20
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          version: v0.2.1
+          token: ${{ secrets.CASCADE_STATE_TOKEN }}
+          version: v0.3.0-rc.20
       - name: Generate Changelog
         id: changelog
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
         run: |
           # Use changelog_base_sha which compares this env to next env
           # This shows commits in this env NOT yet promoted to next env
@@ -170,7 +172,7 @@ jobs:
           sha: ${{ needs.setup.outputs.head_sha }}
           changelog: ${{ steps.changelog.outputs.changelog }}
           previous_tag: ${{ needs.setup.outputs.previous_tag }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CASCADE_STATE_TOKEN }}
       - name: Update Manifest
         env:
           GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
