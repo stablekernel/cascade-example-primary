@@ -45,7 +45,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: hotfix-${{ github.event.inputs.target_env || github.event.pull_request.base.ref }}
+  group: ${{ github.event_name == 'pull_request' && format('hotfix-finalize-{0}', github.repository) || format('hotfix-{0}', github.event.inputs.target_env) }}
   cancel-in-progress: false
 
 jobs:
@@ -69,9 +69,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.3.0-rc.22
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.3.0-rc.23
         with:
-          version: v0.3.0-rc.22
+          version: v0.3.0-rc.23
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
@@ -116,9 +116,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.3.0-rc.22
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.3.0-rc.23
         with:
-          version: v0.3.0-rc.22
+          version: v0.3.0-rc.23
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
@@ -231,9 +231,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.3.0-rc.22
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.3.0-rc.23
         with:
-          version: v0.3.0-rc.22
+          version: v0.3.0-rc.23
       - name: Validate manifest
         run: |
           MANIFEST_FILE=".github/manifest.yaml"
@@ -339,9 +339,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.3.0-rc.22
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.3.0-rc.23
         with:
-          version: v0.3.0-rc.22
+          version: v0.3.0-rc.23
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
