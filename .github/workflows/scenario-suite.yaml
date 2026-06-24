@@ -432,8 +432,8 @@ jobs:
             echo "| artifact-b | $(yq eval '.ci.state.staging.external.artifact-b.sha // "~"' .github/manifest.yaml) | $(yq eval '.ci.state.staging.external.artifact-b.version // "~"' .github/manifest.yaml) |"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  promote-staging:
-    name: Promote staging to prod
+  release-gates:
+    name: Release guard rails - dry-run skip and serialized concurrency
     runs-on: ubuntu-latest
     needs: external-update-concurrent
     steps:
@@ -447,6 +447,301 @@ jobs:
         run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
+
+      # Dry-run promotion: the release workflow's own dry_run skip. With
+      # dry_run=true every promote/deploy/finalize job is gated off (see
+      # promote.yaml job ifs), so preflight runs, reports, and the run
+      # concludes success WITHOUT publishing a release or cutting a tag.
+      # Capture the tag set before and after to prove no tag was created.
+      - name: Capture tags before dry run
+        id: tags_before
+        env:
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --quiet || true
+          BEFORE=$(git tag -l | sort | tr '\n' ',' )
+          echo "before=$BEFORE" >> "$GITHUB_OUTPUT"
+          echo "tags before dry run: $BEFORE"
+
+      - name: Dispatch dry-run promote
+        env:
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
+        run: |
+          set -euo pipefail
+          DISPATCH_SINCE=$(date -u -d '60 seconds ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+            || date -u -v-60S +%Y-%m-%dT%H:%M:%SZ)
+          echo "DRY_SINCE=$DISPATCH_SINCE" >> "$GITHUB_ENV"
+          gh workflow run promote.yaml -f mode=default -f dry_run=true --ref main
+
+      - name: Wait for dry-run promote
+        id: wait_dry
+        env:
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
+        run: |
+          set -euo pipefail
+          MAX_ATTEMPTS=8
+          ATTEMPT=0
+          RUN_ID=""
+          while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
+            RUN_ID=$(gh run list --workflow=promote.yaml --branch=main \
+              --created=">=$DRY_SINCE" --limit=1 \
+              --json=databaseId --jq='.[0].databaseId // empty' 2>/dev/null || echo "")
+            [ -n "$RUN_ID" ] && break
+            ATTEMPT=$((ATTEMPT + 1))
+            [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ] && sleep 60
+          done
+          if [ -z "$RUN_ID" ]; then
+            echo "::error::dry-run promote run did not appear within timeout"
+            exit 1
+          fi
+          gh run watch "$RUN_ID" --exit-status --interval 60
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      # Register the dry-run promote run: a dry run is expected to SUCCEED
+      # (the gate jobs skip cleanly), so the registered conclusion is success.
+      - name: Register dry-run promote run
+        uses: stablekernel/cascade/.github/actions/register-run@main
+        with:
+          run-id: ${{ steps.wait_dry.outputs.run_id }}
+          expected-conclusion: success
+          reason: release-dry-run
+          upload: 'true'
+
+      - name: Assert dry run created no tag
+        env:
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
+          TAGS_BEFORE: ${{ steps.tags_before.outputs.before }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --quiet || true
+          AFTER=$(git tag -l | sort | tr '\n' ',' )
+          if [ "$AFTER" != "$TAGS_BEFORE" ]; then
+            echo "::error::dry-run promote changed the tag set: before='$TAGS_BEFORE' after='$AFTER' (a dry run must not cut a tag)"
+            exit 1
+          fi
+          echo "OK: dry-run promote published nothing - tag set unchanged"
+
+      # Serialized concurrency: promote.yaml declares
+      #   concurrency: { group: Promote, cancel-in-progress: false }
+      # so two promote runs in the same group must NOT cancel each other - the
+      # second queues behind the first and both reach a terminal conclusion.
+      # Fire two dry-run promotes back to back and assert neither was cancelled.
+      - name: Dispatch two concurrent dry-run promotes
+        env:
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
+        run: |
+          set -euo pipefail
+          DISPATCH_SINCE=$(date -u -d '60 seconds ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+            || date -u -v-60S +%Y-%m-%dT%H:%M:%SZ)
+          echo "CONC_SINCE=$DISPATCH_SINCE" >> "$GITHUB_ENV"
+          gh workflow run promote.yaml -f mode=default -f dry_run=true --ref main
+          gh workflow run promote.yaml -f mode=default -f dry_run=true --ref main
+
+      - name: Resolve and assert both promotes serialized (neither cancelled)
+        id: conc
+        env:
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Wait until two promote runs created at/after the boundary exist.
+          MAX_ATTEMPTS=10
+          ATTEMPT=0
+          IDS=""
+          while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
+            IDS=$(gh run list --workflow=promote.yaml --branch=main \
+              --created=">=$CONC_SINCE" --limit=10 \
+              --json=databaseId --jq='[.[].databaseId] | .[0:2] | join(" ")' 2>/dev/null || echo "")
+            COUNT=$(echo "$IDS" | wc -w | tr -d ' ')
+            [ "$COUNT" -ge 2 ] && break
+            ATTEMPT=$((ATTEMPT + 1))
+            sleep 60
+          done
+          COUNT=$(echo "$IDS" | wc -w | tr -d ' ')
+          if [ "$COUNT" -lt 2 ]; then
+            echo "::error::expected two concurrent promote runs, found $COUNT ($IDS)"
+            exit 1
+          fi
+          ID1=$(echo "$IDS" | awk '{print $1}')
+          ID2=$(echo "$IDS" | awk '{print $2}')
+          # Watch both to a terminal state. cancel-in-progress:false means the
+          # queued run is NOT cancelled, so both must conclude (success here,
+          # since both are dry runs). A cancelled conclusion is the failure mode.
+          gh run watch "$ID1" --exit-status --interval 60
+          gh run watch "$ID2" --exit-status --interval 60
+          for ID in "$ID1" "$ID2"; do
+            CONCLUSION=$(gh run view "$ID" --json conclusion --jq '.conclusion')
+            if [ "$CONCLUSION" = "cancelled" ]; then
+              echo "::error::promote run $ID was cancelled - serialized concurrency (cancel-in-progress:false) was not honoured"
+              exit 1
+            fi
+          done
+          echo "id1=$ID1" >> "$GITHUB_OUTPUT"
+          echo "id2=$ID2" >> "$GITHUB_OUTPUT"
+          echo "OK: both promote runs reached a terminal state with no cancellation"
+
+      - name: Register first serialized promote run
+        uses: stablekernel/cascade/.github/actions/register-run@main
+        with:
+          run-id: ${{ steps.conc.outputs.id1 }}
+          expected-conclusion: success
+          reason: release-concurrency-serialized-a
+          upload: 'true'
+
+      - name: Register second serialized promote run
+        uses: stablekernel/cascade/.github/actions/register-run@main
+        with:
+          run-id: ${{ steps.conc.outputs.id2 }}
+          expected-conclusion: success
+          reason: release-concurrency-serialized-b
+          upload: 'true'
+
+  manage-release-verbs:
+    name: Manage-release lock and orphan-delete verbs
+    runs-on: ubuntu-latest
+    needs: release-gates
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.CASCADE_STATE_TOKEN }}
+          ref: main
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      # The manage-release action shells out to the cascade CLI, so it must be
+      # on PATH (matches promote.yaml's finalize job, which installs it first).
+      - name: Setup CLI
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.4.1-rc.0
+        with:
+          token: ${{ secrets.CASCADE_STATE_TOKEN }}
+          version: v0.4.1-rc.0
+
+      # The staging prerelease that merge-and-build cut still exists (the
+      # terminal promote-staging job that publishes it runs after this job).
+      # Resolve the current staging RC tag and lock it via the manage-release
+      # lock verb, then assert the release is marked as a prerelease (locked).
+      - name: Resolve current staging RC tag
+        id: rc
+        run: |
+          set -euo pipefail
+          git pull --rebase origin main --quiet || true
+          RC_TAG=$(yq eval '.ci.state.staging.version // ""' .github/manifest.yaml)
+          if [ -z "$RC_TAG" ]; then
+            echo "::error::no staging RC version in state to exercise the lock verb"
+            exit 1
+          fi
+          echo "rc_tag=$RC_TAG" >> "$GITHUB_OUTPUT"
+          echo "staging RC tag: $RC_TAG"
+
+      - name: Lock the staging prerelease
+        uses: ./.github/actions/manage-release
+        with:
+          repo: ${{ github.repository }}
+          action: lock
+          environment: staging
+          sha: ''
+          tag: ${{ steps.rc.outputs.rc_tag }}
+          token: ${{ secrets.CASCADE_STATE_TOKEN }}
+
+      - name: Assert lock flipped the release to prerelease
+        env:
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
+          RC_TAG: ${{ steps.rc.outputs.rc_tag }}
+        run: |
+          set -euo pipefail
+          IS_PRERELEASE=$(gh release view "$RC_TAG" --json isPrerelease --jq '.isPrerelease' 2>/dev/null || echo "")
+          if [ "$IS_PRERELEASE" != "true" ]; then
+            echo "::error::lock verb did not leave release $RC_TAG as a prerelease (got isPrerelease='$IS_PRERELEASE')"
+            exit 1
+          fi
+          echo "OK: lock verb left $RC_TAG marked as a prerelease"
+
+      # Orphan-delete: seed a throwaway release for an env that is then skipped,
+      # invoke the manage-release delete verb against it, and assert it is gone.
+      - name: Seed an orphan release for the prod env
+        env:
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
+        run: |
+          set -euo pipefail
+          ORPHAN_TAG="orphan-$(date +%s)-$RANDOM"
+          echo "ORPHAN_TAG=$ORPHAN_TAG" >> "$GITHUB_ENV"
+          SRC_SHA=$(git rev-parse origin/main)
+          gh release create "$ORPHAN_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$SRC_SHA" \
+            --title "$ORPHAN_TAG" \
+            --notes "orphaned-release-cleanup coverage" \
+            --draft
+          echo "seeded orphan release $ORPHAN_TAG"
+
+      - name: Delete the orphan release via the delete verb
+        uses: ./.github/actions/manage-release
+        with:
+          repo: ${{ github.repository }}
+          action: delete
+          environment: prod
+          sha: ''
+          tag: ${{ env.ORPHAN_TAG }}
+          token: ${{ secrets.CASCADE_STATE_TOKEN }}
+
+      - name: Assert orphan release removed
+        env:
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
+          ORPHAN_TAG: ${{ env.ORPHAN_TAG }}
+        run: |
+          set -euo pipefail
+          if gh release view "$ORPHAN_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::delete verb did not remove orphan release $ORPHAN_TAG"
+            exit 1
+          fi
+          echo "OK: delete verb removed orphan release $ORPHAN_TAG"
+
+      # Rejoin cleanup: a second delete (idempotent) against an already-absent
+      # tag must not error - the rejoin path re-runs delete on an env whose
+      # orphan was already cleared.
+      - name: Delete again - rejoin cleanup is idempotent
+        uses: ./.github/actions/manage-release
+        with:
+          repo: ${{ github.repository }}
+          action: delete
+          environment: prod
+          sha: ''
+          tag: ${{ env.ORPHAN_TAG }}
+          token: ${{ secrets.CASCADE_STATE_TOKEN }}
+
+  promote-staging:
+    name: Promote staging to prod
+    runs-on: ubuntu-latest
+    needs: manage-release-verbs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.CASCADE_STATE_TOKEN }}
+          ref: main
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      # Capture the staging RC marker BEFORE the terminal promote so the
+      # post-promote asserts can prove the RC->semver resolution on final-env
+      # publish and the RC tag deletion (Publish step passes delete_tag=rc).
+      - name: Capture staging RC before promote
+        id: rc_before
+        env:
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
+        run: |
+          set -euo pipefail
+          git pull --rebase origin main --quiet || true
+          RC_BEFORE=$(yq eval '.ci.state.staging.version // ""' .github/manifest.yaml)
+          echo "rc_before=$RC_BEFORE" >> "$GITHUB_OUTPUT"
+          echo "staging RC before promote: $RC_BEFORE"
 
       - name: Dispatch promote workflow
         run: |
@@ -536,6 +831,41 @@ jobs:
           fi
           echo "OK: release marker=$RELEASE_VERSION tag=$RELEASE_TAG published; external state preserved"
 
+      # Promote runtime side-effects (#325): on final-env publish the Publish
+      # step resolves the RC tag to its semver (drops the -rc.N suffix) and
+      # passes delete_tag=<rc_version> so the RC tag is removed. Assert both:
+      # the published marker is the RC's semver, and the RC tag no longer exists.
+      - name: Assert RC->semver resolution and RC tag deleted
+        env:
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
+          RC_BEFORE: ${{ steps.rc_before.outputs.rc_before }}
+        run: |
+          set -euo pipefail
+          if [ -z "$RC_BEFORE" ]; then
+            echo "::error::no staging RC captured before promote; cannot assert RC->semver resolution"
+            exit 1
+          fi
+          git fetch origin main --quiet
+          git reset --hard origin/main
+          RELEASE_VERSION=$(yq eval '.ci.state.release.version // ""' .github/manifest.yaml)
+          # The published semver is the RC with its -rc.N suffix stripped.
+          EXPECT_SEMVER="${RC_BEFORE%%-rc.*}"
+          if [ "$RELEASE_VERSION" != "$EXPECT_SEMVER" ]; then
+            echo "::error::RC->semver resolution wrong: RC '$RC_BEFORE' should publish as '$EXPECT_SEMVER' but release marker is '$RELEASE_VERSION'"
+            exit 1
+          fi
+          # The RC tag must have been deleted by the publish step (delete_tag).
+          git fetch --tags --quiet || true
+          if git rev-parse --verify --quiet "refs/tags/$RC_BEFORE" >/dev/null; then
+            echo "::error::RC tag $RC_BEFORE still present after publish (delete_tag side-effect did not fire)"
+            exit 1
+          fi
+          if gh release view "$RC_BEFORE" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::RC release $RC_BEFORE still present after publish"
+            exit 1
+          fi
+          echo "OK: RC $RC_BEFORE resolved to semver $RELEASE_VERSION and the RC tag was deleted"
+
       - name: Final snapshot (all envs + all external sources + release)
         if: always()
         run: |
@@ -567,7 +897,7 @@ jobs:
   # this repo), into a hard red until it is accounted for or stopped.
   reconcile:
     name: Reconcile scenario-window runs
-    needs: [reset, merge-and-build, external-update-concurrent, promote-staging]
+    needs: [reset, merge-and-build, external-update-concurrent, release-gates, manage-release-verbs, promote-staging]
     if: always()
     uses: stablekernel/cascade/.github/workflows/fleet-reconcile.yaml@main
     permissions:
