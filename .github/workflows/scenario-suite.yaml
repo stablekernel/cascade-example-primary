@@ -32,7 +32,24 @@ jobs:
   reset:
     name: Reset manifest state
     runs-on: ubuntu-latest
+    outputs:
+      # Captured before anything is dispatched or merged. The reconcile job
+      # enumerates every run this repo produced at or after this instant and
+      # fails if any is unaccounted for in the ledger. Recorded as the very first
+      # step of the first job so no run the suite causes can fall outside it.
+      window-start: ${{ steps.window.outputs.window-start }}
     steps:
+      # The reconcile window opens here, before the first reset push, dispatch,
+      # or merge. Every run the suite goes on to cause lands at or after this
+      # timestamp, so the reconcile job sees all of them.
+      - name: Open reconcile window
+        id: window
+        run: |
+          set -euo pipefail
+          WINDOW_START="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "window-start=$WINDOW_START" >> "$GITHUB_OUTPUT"
+          echo "reconcile window opened at $WINDOW_START"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -148,6 +165,16 @@ jobs:
           gh run watch "$RUN_ID" --exit-status --interval 60
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
+      # Register the orchestrate run this merge triggered so reconcile accounts
+      # for it. upload: true so this job's ledger reaches the reconcile job.
+      - name: Register orchestrate run
+        uses: stablekernel/cascade/.github/actions/register-run@main
+        with:
+          run-id: ${{ steps.wait_orchestrate.outputs.run_id }}
+          expected-conclusion: success
+          reason: merge-and-build-orchestrate
+          upload: 'true'
+
       - name: Assert staging populated and draft release created
         run: |
           git pull --rebase origin main
@@ -246,16 +273,28 @@ jobs:
           git config user.email "actions@github.com"
 
       - name: Dispatch External Update for artifact-a and artifact-b (concurrent)
+        id: dispatch_external
+        env:
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
         run: |
+          set -euo pipefail
+          # Each dispatch carries a UNIQUE sha. The external-update run-name is
+          # "External Update <deploy_name> <sha>" (see external-update.yaml
+          # run-name), so the unique sha lets the wait step resolve the EXACT run
+          # id each dispatch produced and watch THAT id - never a stale run, and
+          # never some other driver's in-window dispatch (e.g. the shared/dev
+          # external-update runs the artifact repos fire at this repo). This
+          # replaces the prior time-windowed success/failure COUNT, which could
+          # both miss a third in-window failure and mistake an unrelated driver's
+          # failing run for one of ours.
           A_SHA="a$(date +%s)0001"
           B_SHA="b$(date +%s)0002"
           echo "A_SHA=$A_SHA" >> "$GITHUB_ENV"
           echo "B_SHA=$B_SHA" >> "$GITHUB_ENV"
-          # Record a dispatch boundary so the wait step only counts runs from
-          # THIS scenario. Without it, gh run list matches stale external-update
-          # runs from prior suite iterations (a leftover failure from an earlier
-          # run aborts this one even though both fresh dispatches succeed).
-          # Back-date 60s to absorb runner/API clock skew at the boundary.
+          # Record a dispatch boundary used ONLY to scope the per-sha run lookup
+          # to this iteration's runs (an old run could never share the unique
+          # sha, but the bound keeps the list query small). Back-date 60s for
+          # runner/API clock skew.
           DISPATCH_SINCE=$(date -u -d '60 seconds ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
             || date -u -v-60S +%Y-%m-%dT%H:%M:%SZ)
           echo "DISPATCH_SINCE=$DISPATCH_SINCE" >> "$GITHUB_ENV"
@@ -281,43 +320,73 @@ jobs:
             -f artifacts='{"artifact_name":"widget-b-'"$B_SHA"'"}' \
             --ref main
 
-      - name: Wait for both External Update runs to succeed
+      - name: Resolve and watch the two External Update runs by id
+        id: external_runs
+        env:
+          GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
         run: |
-          # Both dispatched external-update runs must reach SUCCESS, not merely
-          # "completed". A failed run also reports as completed, so counting
-          # completed runs masks a dropped slot. Require two successes and fail
-          # loudly (surfacing any failed run) if a dispatch did not commit its
-          # state, rather than racing the assertion against a half-written tree.
-          # Scope every query to runs created at/after the dispatch boundary so
-          # stale runs from earlier suite iterations cannot satisfy the success
-          # count or trip the failure guard.
+          set -euo pipefail
           MAX_ATTEMPTS=10
           SLEEP_DURATION=60
-          ATTEMPT=0
-          while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
-            SUCCEEDED=$(gh run list --workflow=external-update.yaml --branch=main \
-              --status=success --created=">=$DISPATCH_SINCE" --limit=10 \
-              --json=databaseId --jq='length' 2>/dev/null || echo 0)
-            if [ "$SUCCEEDED" -ge 2 ]; then
-              echo "Both External Update runs succeeded"
-              break
-            fi
-            FAILED=$(gh run list --workflow=external-update.yaml --branch=main \
-              --status=failure --created=">=$DISPATCH_SINCE" --limit=10 \
-              --json=databaseId --jq='length' 2>/dev/null || echo 0)
-            if [ "$FAILED" -ge 1 ]; then
-              echo "::error::An External Update run failed (concurrent state push not absorbed)."
-              gh run list --workflow=external-update.yaml --branch=main \
-                --created=">=$DISPATCH_SINCE" --limit 4 || true
-              exit 1
-            fi
-            ATTEMPT=$((ATTEMPT + 1))
-            [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ] && sleep "$SLEEP_DURATION"
-          done
-          if [ "$ATTEMPT" -ge "$MAX_ATTEMPTS" ]; then
-            echo "::error::External Update runs did not both succeed within timeout"
-            exit 1
-          fi
+
+          # resolve_run <unique-sha> -> prints the databaseId of the
+          # external-update run whose run-name carries that exact sha. The sha is
+          # unique to this iteration's dispatch, so the match is unambiguous and
+          # can never resolve to a stale run or to an unrelated driver's
+          # shared/widget-b/dev dispatch in the same window.
+          resolve_run() {
+            local sha="$1" i id=""
+            for ((i=0; i<MAX_ATTEMPTS; i++)); do
+              id=$(gh run list --workflow=external-update.yaml --branch=main \
+                --created=">=$DISPATCH_SINCE" --limit=30 \
+                --json=databaseId,displayTitle \
+                --jq ".[] | select(.displayTitle | contains(\"$sha\")) | .databaseId" \
+                2>/dev/null | head -n1)
+              [ -n "$id" ] && break
+              sleep "$SLEEP_DURATION"
+            done
+            echo "$id"
+          }
+
+          A_RUN_ID=$(resolve_run "$A_SHA")
+          [ -n "$A_RUN_ID" ] || { echo "::error::no External Update run found for artifact-a sha $A_SHA"; exit 1; }
+          B_RUN_ID=$(resolve_run "$B_SHA")
+          [ -n "$B_RUN_ID" ] || { echo "::error::no External Update run found for artifact-b sha $B_SHA"; exit 1; }
+          echo "resolved artifact-a run $A_RUN_ID, artifact-b run $B_RUN_ID"
+
+          # Watch EACH dispatched run by its own id and require success. A failed
+          # run reports as "completed" too, so --exit-status is what proves the
+          # state push committed. Watching by id means a third unrelated failing
+          # external-update run in the window cannot mask or trip this gate.
+          gh run watch "$A_RUN_ID" --exit-status --interval 60 \
+            || { echo "::error::artifact-a External Update run $A_RUN_ID did not conclude success"; exit 1; }
+          gh run watch "$B_RUN_ID" --exit-status --interval 60 \
+            || { echo "::error::artifact-b External Update run $B_RUN_ID did not conclude success"; exit 1; }
+
+          {
+            echo "a_run_id=$A_RUN_ID"
+            echo "b_run_id=$B_RUN_ID"
+          } >> "$GITHUB_OUTPUT"
+          echo "both External Update runs concluded success"
+
+      # Register both dispatched External Update runs so reconcile accounts for
+      # the exact runs the suite caused (not the unrelated shared/widget-b/dev
+      # dispatches other repos fire, which the gate surfaces as unaccounted red).
+      - name: Register artifact-a External Update run
+        uses: stablekernel/cascade/.github/actions/register-run@main
+        with:
+          run-id: ${{ steps.external_runs.outputs.a_run_id }}
+          expected-conclusion: success
+          reason: external-update-artifact-a
+          upload: 'true'
+
+      - name: Register artifact-b External Update run
+        uses: stablekernel/cascade/.github/actions/register-run@main
+        with:
+          run-id: ${{ steps.external_runs.outputs.b_run_id }}
+          expected-conclusion: success
+          reason: external-update-artifact-b
+          upload: 'true'
 
       - name: Assert both sources absorbed with no loss (serialized)
         run: |
@@ -390,6 +459,7 @@ jobs:
           gh workflow run promote.yaml -f mode=default --ref main
 
       - name: Wait for promote to complete
+        id: wait_promote
         run: |
           # Resolve the promote run dispatched by THIS scenario (created at/after
           # the recorded boundary), then watch THAT id to completion and require
@@ -415,6 +485,16 @@ jobs:
             exit 1
           fi
           gh run watch "$RUN_ID" --exit-status --interval 60
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      # Register the promote run so reconcile accounts for it.
+      - name: Register promote run
+        uses: stablekernel/cascade/.github/actions/register-run@main
+        with:
+          run-id: ${{ steps.wait_promote.outputs.run_id }}
+          expected-conclusion: success
+          reason: promote-staging-to-prod
+          upload: 'true'
 
       - name: Assert release published, external state preserved
         run: |
@@ -474,3 +554,27 @@ jobs:
             echo "| Concurrent updates serialized | check external-update-concurrent |"
             echo "| prod published + external preserved | OK |"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------
+  # Reconcile gate: structural coverage backstop. The per-stage asserts above
+  # still gate each run they wait on; this job is additive. It enumerates EVERY
+  # run this repo produced since window-start (captured before the first reset
+  # push) and fails if any is unaccounted for in the ledger the register-run
+  # steps uploaded - an unregistered non-success run, or a registered run that
+  # concluded other than its expected conclusion. This turns any run the suite
+  # forgot to gate, AND any unrelated in-window failure (e.g. the
+  # shared/widget-b/dev External Update dispatches the artifact repos fire at
+  # this repo), into a hard red until it is accounted for or stopped.
+  reconcile:
+    name: Reconcile scenario-window runs
+    needs: [reset, merge-and-build, external-update-concurrent, promote-staging]
+    if: always()
+    uses: stablekernel/cascade/.github/workflows/fleet-reconcile.yaml@main
+    permissions:
+      contents: read
+      actions: read
+    with:
+      window-start: ${{ needs.reset.outputs.window-start }}
+      # Artifact mode: each register-run step uploaded a per-job ledger under
+      # the default cascade-run-ledger-* name; reconcile globs and merges them.
+      cascade-ref: main
