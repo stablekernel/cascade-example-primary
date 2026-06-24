@@ -41,6 +41,11 @@ ci:
                         workflow: .github/workflows/deploy-artifact-b.yaml
     state:
         prod: {}
+        release:
+            sha: 86c32d2337dc070d676ebb62d35225727eff8b1f
+            version: v0.1.0
+            committed_at: "2026-06-24T05:19:32Z"
+            committed_by: joshua-temple
         staging:
             sha: 86c32d2337dc070d676ebb62d35225727eff8b1f
             version: v0.1.0-rc.0
@@ -74,6 +79,6 @@ ci:
                         artifact_name: widget-b-b17822782660002
     latest_release:
         version: v0.1.0
-        sha: 073a48a13328a42f47411f45daec947b7a3402eb
-        released_on: "2026-06-24T04:06:03Z"
+        sha: 86c32d2337dc070d676ebb62d35225727eff8b1f
+        released_on: "2026-06-24T05:19:32Z"
         released_by: joshua-temple
