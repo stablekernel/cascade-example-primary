@@ -69,9 +69,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.4.0-rc.3
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.4.0-rc.4
         with:
-          version: v0.4.0-rc.3
+          version: v0.4.0-rc.4
+          token: ${{ github.token }}
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
@@ -116,9 +117,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.4.0-rc.3
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.4.0-rc.4
         with:
-          version: v0.4.0-rc.3
+          version: v0.4.0-rc.4
+          token: ${{ github.token }}
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
@@ -231,9 +233,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.4.0-rc.3
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.4.0-rc.4
         with:
-          version: v0.4.0-rc.3
+          version: v0.4.0-rc.4
+          token: ${{ github.token }}
       - name: Validate manifest
         run: |
           MANIFEST_FILE=".github/manifest.yaml"
@@ -339,9 +342,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.4.0-rc.3
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.4.0-rc.4
         with:
-          version: v0.4.0-rc.3
+          version: v0.4.0-rc.4
+          token: ${{ github.token }}
       - name: Fetch env branches and tags
         run: |
           git fetch origin '+refs/heads/env/*:refs/remotes/origin/env/*' --tags
