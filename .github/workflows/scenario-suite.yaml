@@ -653,7 +653,15 @@ jobs:
           RC_TAG: ${{ steps.rc.outputs.rc_tag }}
         run: |
           set -euo pipefail
-          IS_PRERELEASE=$(gh release view "$RC_TAG" --json isPrerelease --jq '.isPrerelease' 2>/dev/null || echo "")
+          # The locked release is still a DRAFT (lock only sets prerelease=true;
+          # it does not publish). Drafts have no pushed git tag, so
+          # `gh release view <tag>` reports "not found" and returns empty. Match
+          # the draft via `gh release list --json ...` (which includes drafts),
+          # the same mechanism the earlier draft-creation assert relies on.
+          IS_PRERELEASE=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 200 \
+            --json tagName,name,isDraft,isPrerelease \
+            --jq ".[] | select(.tagName == \"$RC_TAG\" or .name == \"$RC_TAG\") | .isPrerelease" \
+            | head -1)
           if [ "$IS_PRERELEASE" != "true" ]; then
             echo "::error::lock verb did not leave release $RC_TAG as a prerelease (got isPrerelease='$IS_PRERELEASE')"
             exit 1
@@ -694,7 +702,15 @@ jobs:
           ORPHAN_TAG: ${{ env.ORPHAN_TAG }}
         run: |
           set -euo pipefail
-          if gh release view "$ORPHAN_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          # The orphan was seeded as a DRAFT, so `gh release view <tag>` cannot
+          # see it (drafts have no pushed tag) and would report "not found"
+          # whether or not the delete actually ran. List drafts explicitly so a
+          # silently-undeleted orphan is still caught.
+          STILL_PRESENT=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 200 \
+            --json tagName,name \
+            --jq ".[] | select(.tagName == \"$ORPHAN_TAG\" or .name == \"$ORPHAN_TAG\") | .tagName" \
+            | head -1)
+          if [ -n "$STILL_PRESENT" ]; then
             echo "::error::delete verb did not remove orphan release $ORPHAN_TAG"
             exit 1
           fi
