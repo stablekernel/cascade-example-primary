@@ -52,16 +52,17 @@ jobs:
       target_env: ${{ steps.preflight.outputs.target_env }}
       target_sha: ${{ steps.preflight.outputs.target_sha }}
       target_version: ${{ steps.preflight.outputs.target_version }}
+      target_source: ${{ steps.preflight.outputs.target_source }}
       can_proceed: ${{ steps.preflight.outputs.can_proceed }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.4.2-rc.0
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.4.2-rc.1
         with:
           token: ${{ secrets.CASCADE_STATE_TOKEN }}
-          version: v0.4.2-rc.0
+          version: v0.4.2-rc.1
       - name: Resolve Target
         id: preflight
         env:
@@ -78,6 +79,8 @@ jobs:
       - name: Fail if Cannot Proceed
         if: steps.preflight.outputs.can_proceed == 'false'
         run: exit 1
+      - name: Report Resolved Source
+        run: echo "rollback resolved from ${{ steps.preflight.outputs.target_source }}"
 
   deploy-app:
     name: Deploy app
@@ -100,10 +103,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.4.2-rc.0
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.4.2-rc.1
         with:
           token: ${{ secrets.CASCADE_STATE_TOKEN }}
-          version: v0.4.2-rc.0
+          version: v0.4.2-rc.1
       - name: Finalize Rollback
         env:
           GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
