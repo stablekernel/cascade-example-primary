@@ -7,7 +7,7 @@ ci:
         environments:
             - staging
             - prod
-        cli_version: v0.5.0-rc.4
+        cli_version: v0.5.0-rc.5
         state_token: ${{ secrets.CASCADE_STATE_TOKEN }}
         manifest_file: .github/manifest.yaml
         manifest_key: ci
@@ -48,7 +48,7 @@ ci:
             committed_by: joshua-temple
         staging:
             sha: 5a83871ba3feab30d9a2d9d62ab18ac7a62ec28d
-            version: v0.1.0-rc.0
+            version: v0.5.0-rc.5
             committed_at: "2026-06-25T18:23:14Z"
             committed_by: joshua-temple
             builds:
@@ -72,7 +72,7 @@ ci:
                 artifact-b:
                     repo: stablekernel/cascade-example-artifact-b
                     sha: 9ae5f958aa360ee31e98d72f9bb4a3996b8f0658
-                    version: v0.1.0-rc.0
+                    version: v0.5.0-rc.5
                     deployed_at: "2026-06-25T18:30:31Z"
                     deployed_by: joshua-temple
     latest_release:
