@@ -43,6 +43,14 @@ ci:
         prod: {}
         staging:
             external:
+                artifact-a:
+                    repo: stablekernel/cascade-example-artifact-a
+                    sha: a202606251830559562
+                    version: v1.0.0
+                    deployed_at: "2026-06-25T18:31:11Z"
+                    deployed_by: joshua-temple
+                    artifacts:
+                        artifact_id: artifact-a-a202606251830559562
                 artifact-b:
                     repo: stablekernel/cascade-example-artifact-b
                     sha: b2026062518310319487
