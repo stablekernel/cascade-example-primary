@@ -39,6 +39,42 @@ jobs:
       # step of the first job so no run the suite causes can fall outside it.
       window-start: ${{ steps.window.outputs.window-start }}
     steps:
+      - name: Install gh transient-retry wrapper
+        run: |
+          cat > "$RUNNER_TEMP/gh-retry.sh" <<'GHRETRY'
+          _gh_is_transient() {
+            local out="$1"
+            if printf '%s' "$out" | grep -qiE 'HTTP 5[0-9][0-9]|HTTP 429|HTTP 401|Bad credentials|was submitted too quickly|secondary rate limit'; then
+              return 0
+            fi
+            if printf '%s' "$out" | grep -qiE 'HTTP 403'; then
+              if printf '%s' "$out" | grep -qiE 'rate limit|secondary|abuse|too quickly'; then
+                return 0
+              fi
+            fi
+            return 1
+          }
+          gh() {
+            local attempt=1 max="${GH_RETRY_MAX:-5}" delay="${GH_RETRY_BASE_DELAY:-3}" out rc
+            while :; do
+              out="$(command gh "$@" 2>&1)" && rc=0 || rc=$?
+              if [ "$rc" -eq 0 ]; then
+                printf '%s\n' "$out"
+                return 0
+              fi
+              if [ "$attempt" -ge "$max" ] || ! _gh_is_transient "$out"; then
+                printf '%s\n' "$out" >&2
+                return "$rc"
+              fi
+              printf 'gh: transient error on attempt %d/%d, retrying in %ds\n%s\n' "$attempt" "$max" "$delay" "$out" >&2
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+          GHRETRY
+          echo "BASH_ENV=$RUNNER_TEMP/gh-retry.sh" >> "$GITHUB_ENV"
+
       # The reconcile window opens here, before the first reset push, dispatch,
       # or merge. Every run the suite goes on to cause lands at or after this
       # timestamp, so the reconcile job sees all of them.
@@ -90,6 +126,42 @@ jobs:
     runs-on: ubuntu-latest
     needs: reset
     steps:
+      - name: Install gh transient-retry wrapper
+        run: |
+          cat > "$RUNNER_TEMP/gh-retry.sh" <<'GHRETRY'
+          _gh_is_transient() {
+            local out="$1"
+            if printf '%s' "$out" | grep -qiE 'HTTP 5[0-9][0-9]|HTTP 429|HTTP 401|Bad credentials|was submitted too quickly|secondary rate limit'; then
+              return 0
+            fi
+            if printf '%s' "$out" | grep -qiE 'HTTP 403'; then
+              if printf '%s' "$out" | grep -qiE 'rate limit|secondary|abuse|too quickly'; then
+                return 0
+              fi
+            fi
+            return 1
+          }
+          gh() {
+            local attempt=1 max="${GH_RETRY_MAX:-5}" delay="${GH_RETRY_BASE_DELAY:-3}" out rc
+            while :; do
+              out="$(command gh "$@" 2>&1)" && rc=0 || rc=$?
+              if [ "$rc" -eq 0 ]; then
+                printf '%s\n' "$out"
+                return 0
+              fi
+              if [ "$attempt" -ge "$max" ] || ! _gh_is_transient "$out"; then
+                printf '%s\n' "$out" >&2
+                return "$rc"
+              fi
+              printf 'gh: transient error on attempt %d/%d, retrying in %ds\n%s\n' "$attempt" "$max" "$delay" "$out" >&2
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+          GHRETRY
+          echo "BASH_ENV=$RUNNER_TEMP/gh-retry.sh" >> "$GITHUB_ENV"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -263,6 +335,42 @@ jobs:
     runs-on: ubuntu-latest
     needs: merge-and-build
     steps:
+      - name: Install gh transient-retry wrapper
+        run: |
+          cat > "$RUNNER_TEMP/gh-retry.sh" <<'GHRETRY'
+          _gh_is_transient() {
+            local out="$1"
+            if printf '%s' "$out" | grep -qiE 'HTTP 5[0-9][0-9]|HTTP 429|HTTP 401|Bad credentials|was submitted too quickly|secondary rate limit'; then
+              return 0
+            fi
+            if printf '%s' "$out" | grep -qiE 'HTTP 403'; then
+              if printf '%s' "$out" | grep -qiE 'rate limit|secondary|abuse|too quickly'; then
+                return 0
+              fi
+            fi
+            return 1
+          }
+          gh() {
+            local attempt=1 max="${GH_RETRY_MAX:-5}" delay="${GH_RETRY_BASE_DELAY:-3}" out rc
+            while :; do
+              out="$(command gh "$@" 2>&1)" && rc=0 || rc=$?
+              if [ "$rc" -eq 0 ]; then
+                printf '%s\n' "$out"
+                return 0
+              fi
+              if [ "$attempt" -ge "$max" ] || ! _gh_is_transient "$out"; then
+                printf '%s\n' "$out" >&2
+                return "$rc"
+              fi
+              printf 'gh: transient error on attempt %d/%d, retrying in %ds\n%s\n' "$attempt" "$max" "$delay" "$out" >&2
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+          GHRETRY
+          echo "BASH_ENV=$RUNNER_TEMP/gh-retry.sh" >> "$GITHUB_ENV"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -439,6 +547,42 @@ jobs:
     runs-on: ubuntu-latest
     needs: external-update-concurrent
     steps:
+      - name: Install gh transient-retry wrapper
+        run: |
+          cat > "$RUNNER_TEMP/gh-retry.sh" <<'GHRETRY'
+          _gh_is_transient() {
+            local out="$1"
+            if printf '%s' "$out" | grep -qiE 'HTTP 5[0-9][0-9]|HTTP 429|HTTP 401|Bad credentials|was submitted too quickly|secondary rate limit'; then
+              return 0
+            fi
+            if printf '%s' "$out" | grep -qiE 'HTTP 403'; then
+              if printf '%s' "$out" | grep -qiE 'rate limit|secondary|abuse|too quickly'; then
+                return 0
+              fi
+            fi
+            return 1
+          }
+          gh() {
+            local attempt=1 max="${GH_RETRY_MAX:-5}" delay="${GH_RETRY_BASE_DELAY:-3}" out rc
+            while :; do
+              out="$(command gh "$@" 2>&1)" && rc=0 || rc=$?
+              if [ "$rc" -eq 0 ]; then
+                printf '%s\n' "$out"
+                return 0
+              fi
+              if [ "$attempt" -ge "$max" ] || ! _gh_is_transient "$out"; then
+                printf '%s\n' "$out" >&2
+                return "$rc"
+              fi
+              printf 'gh: transient error on attempt %d/%d, retrying in %ds\n%s\n' "$attempt" "$max" "$delay" "$out" >&2
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+          GHRETRY
+          echo "BASH_ENV=$RUNNER_TEMP/gh-retry.sh" >> "$GITHUB_ENV"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -603,6 +747,42 @@ jobs:
     runs-on: ubuntu-latest
     needs: release-gates
     steps:
+      - name: Install gh transient-retry wrapper
+        run: |
+          cat > "$RUNNER_TEMP/gh-retry.sh" <<'GHRETRY'
+          _gh_is_transient() {
+            local out="$1"
+            if printf '%s' "$out" | grep -qiE 'HTTP 5[0-9][0-9]|HTTP 429|HTTP 401|Bad credentials|was submitted too quickly|secondary rate limit'; then
+              return 0
+            fi
+            if printf '%s' "$out" | grep -qiE 'HTTP 403'; then
+              if printf '%s' "$out" | grep -qiE 'rate limit|secondary|abuse|too quickly'; then
+                return 0
+              fi
+            fi
+            return 1
+          }
+          gh() {
+            local attempt=1 max="${GH_RETRY_MAX:-5}" delay="${GH_RETRY_BASE_DELAY:-3}" out rc
+            while :; do
+              out="$(command gh "$@" 2>&1)" && rc=0 || rc=$?
+              if [ "$rc" -eq 0 ]; then
+                printf '%s\n' "$out"
+                return 0
+              fi
+              if [ "$attempt" -ge "$max" ] || ! _gh_is_transient "$out"; then
+                printf '%s\n' "$out" >&2
+                return "$rc"
+              fi
+              printf 'gh: transient error on attempt %d/%d, retrying in %ds\n%s\n' "$attempt" "$max" "$delay" "$out" >&2
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+          GHRETRY
+          echo "BASH_ENV=$RUNNER_TEMP/gh-retry.sh" >> "$GITHUB_ENV"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -736,6 +916,42 @@ jobs:
     runs-on: ubuntu-latest
     needs: manage-release-verbs
     steps:
+      - name: Install gh transient-retry wrapper
+        run: |
+          cat > "$RUNNER_TEMP/gh-retry.sh" <<'GHRETRY'
+          _gh_is_transient() {
+            local out="$1"
+            if printf '%s' "$out" | grep -qiE 'HTTP 5[0-9][0-9]|HTTP 429|HTTP 401|Bad credentials|was submitted too quickly|secondary rate limit'; then
+              return 0
+            fi
+            if printf '%s' "$out" | grep -qiE 'HTTP 403'; then
+              if printf '%s' "$out" | grep -qiE 'rate limit|secondary|abuse|too quickly'; then
+                return 0
+              fi
+            fi
+            return 1
+          }
+          gh() {
+            local attempt=1 max="${GH_RETRY_MAX:-5}" delay="${GH_RETRY_BASE_DELAY:-3}" out rc
+            while :; do
+              out="$(command gh "$@" 2>&1)" && rc=0 || rc=$?
+              if [ "$rc" -eq 0 ]; then
+                printf '%s\n' "$out"
+                return 0
+              fi
+              if [ "$attempt" -ge "$max" ] || ! _gh_is_transient "$out"; then
+                printf '%s\n' "$out" >&2
+                return "$rc"
+              fi
+              printf 'gh: transient error on attempt %d/%d, retrying in %ds\n%s\n' "$attempt" "$max" "$delay" "$out" >&2
+              sleep "$delay"
+              attempt=$((attempt + 1))
+              delay=$((delay * 2))
+            done
+          }
+          GHRETRY
+          echo "BASH_ENV=$RUNNER_TEMP/gh-retry.sh" >> "$GITHUB_ENV"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
