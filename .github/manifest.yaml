@@ -7,7 +7,7 @@ ci:
         environments:
             - staging
             - prod
-        cli_version: v0.5.0-rc.9
+        cli_version: v0.5.0-rc.10
         state_token: ${{ secrets.CASCADE_STATE_TOKEN }}
         manifest_file: .github/manifest.yaml
         manifest_key: ci
@@ -48,7 +48,7 @@ ci:
             committed_by: joshua-temple
         staging:
             sha: 085a2eeff647840e37e8217cad653f8a3bf6d5f1
-            version: v0.1.0-rc.0
+            version: v0.5.0-rc.10
             committed_at: "2026-06-26T03:32:18Z"
             committed_by: joshua-temple
             builds:
