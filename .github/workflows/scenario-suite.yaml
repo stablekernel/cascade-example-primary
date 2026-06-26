@@ -57,8 +57,8 @@ jobs:
 
       - name: Configure Git
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Reset manifest state
         run: |
@@ -98,8 +98,8 @@ jobs:
 
       - name: Configure Git
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Seed src change via pull request (emulates a real user)
         id: seed
@@ -107,8 +107,8 @@ jobs:
           GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
         run: |
           set -euo pipefail
-          git config user.name "scenario-suite"
-          git config user.email "scenario-suite@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           # Unique branch so re-runs never collide.
           BRANCH="scenario/src-$(date +%s)-$RANDOM"
@@ -120,17 +120,19 @@ jobs:
           echo "timestamp=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > src/version.txt
           git add src/version.txt
 
-          # Commit message is cosmetic under squash; the PR title carries the
-          # conventional type. No [skip ci]/[ci skip] anywhere or orchestrate is cancelled.
+          # The branch commit message carries the conventional type; rebase
+          # preserves it as the trunk commit subject. No [skip ci]/[ci skip]
+          # anywhere or orchestrate is cancelled.
           git commit --no-gpg-sign -m "feat: dummy src change for scenario test"
           git push origin "$BRANCH"
 
-          # Open + squash-merge with the PAT so the merge is PAT-authored and the
-          # on: push event fires. Title => squashed commit subject => version bump.
+          # Open + rebase-merge: the branch commit replays onto main keeping its
+          # github-actions[bot] author, the on: push event fires, and its
+          # subject drives the version bump.
           gh pr create --base main --head "$BRANCH" \
             --title "feat: dummy src change for scenario test" \
             --body "Automated scenario run; drives orchestrate on merge."
-          gh pr merge "$BRANCH" --squash --delete-branch
+          gh pr merge "$BRANCH" --rebase --delete-branch
 
           # Capture the exact merge SHA on trunk - the key for the wait loop.
           git fetch origin main --quiet
@@ -269,8 +271,8 @@ jobs:
 
       - name: Configure Git
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Dispatch External Update for artifact-a and artifact-b (concurrent)
         id: dispatch_external
@@ -445,8 +447,8 @@ jobs:
 
       - name: Configure Git
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       # Dry-run promotion: the release workflow's own dry_run skip. With
       # dry_run=true every promote/deploy/finalize job is gated off (see
@@ -609,8 +611,8 @@ jobs:
 
       - name: Configure Git
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       # The manage-release action shells out to the cascade CLI, so it must be
       # on PATH (matches promote.yaml's finalize job, which installs it first).
@@ -742,8 +744,8 @@ jobs:
 
       - name: Configure Git
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       # Capture the staging RC marker BEFORE the terminal promote so the
       # post-promote asserts can prove the RC->semver resolution on final-env
