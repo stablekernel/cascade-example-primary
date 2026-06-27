@@ -45,16 +45,16 @@ jobs:
     name: Update External State
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ secrets.CASCADE_STATE_TOKEN }}
 
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.6.0-rc.1
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.6.0-dryrun.8
         with:
           token: ${{ secrets.CASCADE_STATE_TOKEN }}
-          version: v0.6.0-rc.1
+          version: v0.6.0-dryrun.8
 
       - name: Configure Git
         run: |

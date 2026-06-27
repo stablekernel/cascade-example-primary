@@ -65,13 +65,13 @@ jobs:
       no_op_prod: ${{ steps.plan.outputs.no_op_prod }}
       base_prod: ${{ steps.plan.outputs.base_prod }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.6.0-rc.1
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.6.0-dryrun.8
         with:
-          version: v0.6.0-rc.1
+          version: v0.6.0-dryrun.8
           token: ${{ github.token }}
       - name: Fetch env branches and tags
         run: |
@@ -113,13 +113,13 @@ jobs:
       HOTFIX_TARGET_ENV: ${{ github.event.inputs.target_env }}
       ENV_SEQUENCE: ${{ needs.plan.outputs.env_sequence }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.6.0-rc.1
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.6.0-dryrun.8
         with:
-          version: v0.6.0-rc.1
+          version: v0.6.0-dryrun.8
           token: ${{ github.token }}
       - name: Fetch env branches and tags
         run: |
@@ -229,13 +229,13 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.pull_request.merged != true
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.6.0-rc.1
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.6.0-dryrun.8
         with:
-          version: v0.6.0-rc.1
+          version: v0.6.0-dryrun.8
           token: ${{ github.token }}
       - name: Validate manifest
         run: |
@@ -259,7 +259,7 @@ jobs:
       base_sha: ${{ steps.ctx.outputs.base_sha }}
       rollback_sha: ${{ steps.ctx.outputs.rollback_sha }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Derive target environment and hotfix SHAs
@@ -338,13 +338,13 @@ jobs:
       FIX_SHA: ${{ needs.context.outputs.fix_sha }}
       BASE_SHA: ${{ needs.context.outputs.base_sha }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.6.0-rc.1
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.6.0-dryrun.8
         with:
-          version: v0.6.0-rc.1
+          version: v0.6.0-dryrun.8
           token: ${{ github.token }}
       - name: Fetch env branches and tags
         run: |

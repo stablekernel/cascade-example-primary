@@ -55,14 +55,14 @@ jobs:
       target_source: ${{ steps.preflight.outputs.target_source }}
       can_proceed: ${{ steps.preflight.outputs.can_proceed }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.6.0-rc.1
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.6.0-dryrun.8
         with:
           token: ${{ secrets.CASCADE_STATE_TOKEN }}
-          version: v0.6.0-rc.1
+          version: v0.6.0-dryrun.8
       - name: Resolve Target
         id: preflight
         env:
@@ -99,14 +99,14 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.6.0-rc.1
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.6.0-dryrun.8
         with:
           token: ${{ secrets.CASCADE_STATE_TOKEN }}
-          version: v0.6.0-rc.1
+          version: v0.6.0-dryrun.8
       - name: Finalize Rollback
         env:
           GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
