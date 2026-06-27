@@ -7,8 +7,8 @@ ci:
         environments:
             - staging
             - prod
-        cli_version: v0.5.1
-        cli_version_sha: 3722c8ea2693b00fd2202ca56201c8c22f81d950
+        cli_version: v0.6.0-dryrun.4
+        cli_version_sha: 5702d41b698167339851ef2a6233797ef1c4acb7
         state_token: ${{ secrets.CASCADE_STATE_TOKEN }}
         manifest_file: .github/manifest.yaml
         manifest_key: ci
