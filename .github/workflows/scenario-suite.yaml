@@ -797,10 +797,10 @@ jobs:
       # The manage-release action shells out to the cascade CLI, so it must be
       # on PATH (matches promote.yaml's finalize job, which installs it first).
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.6.0-dryrun.9
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.6.0-dryrun.10
         with:
           token: ${{ secrets.CASCADE_STATE_TOKEN }}
-          version: v0.6.0-dryrun.9
+          version: v0.6.0-dryrun.10
 
       # The staging prerelease that merge-and-build cut still exists (the
       # terminal promote-staging job that publishes it runs after this job).
