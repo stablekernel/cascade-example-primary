@@ -19,7 +19,6 @@ on:
         required: true
         type: choice
         options:
-          - staging
           - prod
       target:
         description: 'Prior version or SHA (optional; defaults to the previous version)'
@@ -59,10 +58,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.7.0-rc.0
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.8.0-rc.5
         with:
           token: ${{ secrets.CASCADE_STATE_TOKEN }}
-          version: v0.7.0-rc.0
+          version: v0.8.0-rc.5
       - name: Resolve Target
         id: preflight
         env:
@@ -103,10 +102,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.7.0-rc.0
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.8.0-rc.5
         with:
           token: ${{ secrets.CASCADE_STATE_TOKEN }}
-          version: v0.7.0-rc.0
+          version: v0.8.0-rc.5
       - name: Finalize Rollback
         env:
           GH_TOKEN: ${{ secrets.CASCADE_STATE_TOKEN }}
