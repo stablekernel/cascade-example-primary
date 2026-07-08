@@ -72,12 +72,10 @@ ci:
                         artifact_id: artifact-a-a17835324500001
                 artifact-b:
                     repo: stablekernel/cascade-example-artifact-b
-                    sha: b17835324500002
-                    version: v2.0.0
-                    deployed_at: "2026-07-08T17:41:04Z"
+                    sha: 23c40d07f5af42ea5887c01345f87dfdb11034eb
+                    version: v0.1.0-rc.0
+                    deployed_at: "2026-07-08T17:48:44Z"
                     deployed_by: joshua-temple
-                    artifacts:
-                        artifact_name: widget-b-b17835324500002
     latest_release:
         version: v0.1.0
         sha: 2dac2f237ae6eb5ed2ae47662f4cf864281da7c9
