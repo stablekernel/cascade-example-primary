@@ -73,9 +73,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.14.0-dryrun.53
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.14.0-dryrun.54
         with:
-          version: v0.14.0-dryrun.53
+          version: v0.14.0-dryrun.54
           token: ${{ github.token }}
       - name: Fetch env branches and tags
         run: |
@@ -123,9 +123,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.14.0-dryrun.53
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.14.0-dryrun.54
         with:
-          version: v0.14.0-dryrun.53
+          version: v0.14.0-dryrun.54
           token: ${{ github.token }}
       - name: Fetch env branches and tags
         run: |
@@ -239,9 +239,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.14.0-dryrun.53
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.14.0-dryrun.54
         with:
-          version: v0.14.0-dryrun.53
+          version: v0.14.0-dryrun.54
           token: ${{ github.token }}
       - name: Validate manifest
         run: |
@@ -348,9 +348,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.14.0-dryrun.53
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.14.0-dryrun.54
         with:
-          version: v0.14.0-dryrun.53
+          version: v0.14.0-dryrun.54
           token: ${{ github.token }}
       - name: Fetch env branches and tags
         run: |
