@@ -51,10 +51,10 @@ jobs:
           token: ${{ secrets.CASCADE_STATE_TOKEN }}
 
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.14.0-dryrun.55
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.14.0-rc.1
         with:
           token: ${{ secrets.CASCADE_STATE_TOKEN }}
-          version: v0.14.0-dryrun.55
+          version: v0.14.0-rc.1
 
       - name: Configure Git
         run: |
