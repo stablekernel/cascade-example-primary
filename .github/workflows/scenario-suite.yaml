@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       cascade_version:
-        description: 'cascade rc tag to self-repin to (e.g. v0.14.2-rc.0). Empty runs committed defaults.'
+        description: 'cascade rc tag to self-repin to (e.g. v0.15.0-rc.0). Empty runs committed defaults.'
         required: false
         default: ''
       cascade_version_sha:
@@ -825,10 +825,10 @@ jobs:
       # The manage-release action shells out to the cascade CLI, so it must be
       # on PATH (matches promote.yaml's finalize job, which installs it first).
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.14.2-rc.0
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.15.0-rc.0
         with:
           token: ${{ secrets.CASCADE_STATE_TOKEN }}
-          version: ${{ inputs.cascade_version || 'v0.14.2-rc.0' }}
+          version: ${{ inputs.cascade_version || 'v0.15.0-rc.0' }}
 
       # The staging prerelease that merge-and-build cut still exists (the
       # terminal promote-staging job that publishes it runs after this job).
