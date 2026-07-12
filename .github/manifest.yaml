@@ -64,10 +64,12 @@ ci:
             external:
                 artifact-a:
                     repo: stablekernel/cascade-example-artifact-a
-                    sha: baaa0b0007030f26a4070e83085c8888f77323ae
-                    version: v0.1.0-rc.0
-                    deployed_at: "2026-07-12T07:57:31Z"
+                    sha: a2026071207575013535
+                    version: v1.0.0
+                    deployed_at: "2026-07-12T07:58:02Z"
                     deployed_by: joshua-temple
+                    artifacts:
+                        artifact_id: artifact-a-a2026071207575013535
                 artifact-b:
                     repo: stablekernel/cascade-example-artifact-b
                     sha: d5b352009bfd74d98e027b615df5fa209d1e7994
