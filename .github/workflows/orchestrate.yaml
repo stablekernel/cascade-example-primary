@@ -51,10 +51,10 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.16.0-rc.0
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.16.1-rc.0
         with:
           token: ${{ secrets.CASCADE_STATE_TOKEN }}
-          version: v0.16.0-rc.0
+          version: v0.16.1-rc.0
       - name: Run Setup
         id: setup
         env:
@@ -104,8 +104,8 @@ jobs:
     permissions:
       contents: write
     outputs:
-      app_artifact: ${{ needs.build-app.outputs.artifact }}
-      sharedlib_artifact_id: ${{ needs.build-sharedlib.outputs.artifact_id }}
+      build_app_artifact: ${{ needs.build-app.outputs.artifact }}
+      build_sharedlib_artifact_id: ${{ needs.build-sharedlib.outputs.artifact_id }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -129,7 +129,7 @@ jobs:
               echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
               HAS_OUTPUTS=true
             fi
-            echo "| app_artifact | ${{ needs.build-app.outputs.artifact }} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| build_app_artifact | ${{ needs.build-app.outputs.artifact }} |" >> "$GITHUB_STEP_SUMMARY"
           fi
           if [[ -n "${{ needs.build-sharedlib.outputs.artifact_id }}" ]]; then
             if [[ "$HAS_OUTPUTS" == "false" ]]; then
@@ -137,16 +137,16 @@ jobs:
               echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
               HAS_OUTPUTS=true
             fi
-            echo "| sharedlib_artifact_id | ${{ needs.build-sharedlib.outputs.artifact_id }} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| build_sharedlib_artifact_id | ${{ needs.build-sharedlib.outputs.artifact_id }} |" >> "$GITHUB_STEP_SUMMARY"
           fi
           if [[ "$HAS_OUTPUTS" == "false" ]]; then
             echo "_No outputs produced_" >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.16.0-rc.0
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.16.1-rc.0
         with:
           token: ${{ secrets.CASCADE_STATE_TOKEN }}
-          version: v0.16.0-rc.0
+          version: v0.16.1-rc.0
       - name: Generate Changelog
         id: changelog
         env:
@@ -158,9 +158,12 @@ jobs:
             --base-sha "${{ needs.setup.outputs.changelog_base_sha }}" \
             --head-sha "${{ needs.setup.outputs.head_sha }}" \
             --repo "${{ github.repository }}")
-          echo "changelog<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$RESULT" | jq -r '.changelog' >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          CASCADE_DELIM="$(dd if=/dev/urandom bs=15 count=1 status=none | base64)"
+          {
+            echo "changelog<<${CASCADE_DELIM}"
+            echo "$RESULT" | jq -r '.changelog'
+            echo "${CASCADE_DELIM}"
+          } >> "$GITHUB_OUTPUT"
       - name: Manage Release
         uses: ./.github/actions/manage-release
         with:
@@ -248,6 +251,11 @@ jobs:
             git fetch origin "$BRANCH"
             git reset --hard "origin/$BRANCH"
             BASE_SHA=$(git rev-parse "origin/$BRANCH:$MANIFEST_FILE" 2>/dev/null || true)
+            if [[ -z "$BASE_SHA" ]]; then
+              echo "cascade-state-write: missing-base" >&2
+              echo "::error::$MANIFEST_FILE has no blob at the fetched origin/$BRANCH tip; refusing an unguarded state write" >&2
+              exit 1
+            fi
             apply_state_edits
             if git diff --quiet "$MANIFEST_FILE"; then
               echo "No state changes"
@@ -258,19 +266,33 @@ jobs:
               -f "message=chore: update state for $ENVIRONMENT [skip ci]"
               -f "content=$CONTENT_B64"
               -f "branch=$BRANCH"
+              -f "sha=$BASE_SHA"
               -f "author[name]=github-actions[bot]"
               -f "author[email]=github-actions[bot]@users.noreply.github.com"
               -f "committer[name]=github-actions[bot]"
               -f "committer[email]=github-actions[bot]@users.noreply.github.com")
-            if [[ -n "$BASE_SHA" ]]; then
-              API_ARGS+=(-f "sha=$BASE_SHA")
-            fi
-            if gh api "${API_ARGS[@]}" >/dev/null; then
+            if API_ERR=$(gh api "${API_ARGS[@]}" 2>&1 >/dev/null); then
               echo "Pushed state via API on attempt $attempt"
               echo "cascade-state-write: ok attempt=$attempt"
               exit 0
             fi
-            echo "State write attempt $attempt failed (likely concurrent run); retrying..." >&2
+            echo "$API_ERR" >&2
+            case "$API_ERR" in
+              *"HTTP 409"*|*Conflict*)
+                echo "State write attempt $attempt hit an optimistic-lock conflict (concurrent run); retrying..." >&2
+                ;;
+              *"HTTP 429"*|*"Too Many Requests"*|*"rate limit"*|*"secondary rate"*|*"abuse"*|*"Retry-After"*|*"retry-after"*)
+                echo "State write attempt $attempt was rate limited; retrying with backoff..." >&2
+                ;;
+              *"HTTP 4"*)
+                echo "cascade-state-write: permanent-error attempt=$attempt" >&2
+                echo "::error::State write failed with a permanent API error (see log above); not retrying" >&2
+                exit 1
+                ;;
+              *)
+                echo "State write attempt $attempt failed (transient server or network error); retrying..." >&2
+                ;;
+            esac
             backoff=$(( 1 << (attempt - 1) ))
             if [ "$backoff" -gt 8 ]; then backoff=8; fi
             sleep $(( backoff + RANDOM % 2 ))
