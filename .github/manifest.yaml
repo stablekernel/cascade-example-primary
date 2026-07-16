@@ -1,62 +1,72 @@
 ci:
-  config:
-    schema_version: 1
-    trunk_branch: main
-    triggers:
-      - src/**
-    environments:
-      - staging
-      - prod
-    cli_version: v0.16.2-rc.1
-    cli_version_sha: bd09d0d085c348317c2d718e4bf54bbf8f583a6c
-    state_token: ${{ secrets.CASCADE_STATE_TOKEN }}
-    manifest_file: .github/manifest.yaml
-    manifest_key: ci
-    builds:
-      - name: app
-        workflow: .github/workflows/build-app.yaml
-        triggers: []
-      - name: sharedlib
-        workflow: stablekernel/cascade-example-artifact-a/.github/workflows/build-shared.yaml@main
-        triggers: []
-    deploys:
-      - name: app
-        workflow: .github/workflows/deploy-app.yaml
-        triggers: []
-    external:
-      - repo: stablekernel/cascade-example-artifact-a
-        ref: main
+    config:
+        schema_version: 1
+        trunk_branch: main
+        triggers:
+            - src/**
+        environments:
+            - staging
+            - prod
+        cli_version: v0.16.2-rc.1
+        cli_version_sha: bd09d0d085c348317c2d718e4bf54bbf8f583a6c
+        state_token: ${{ secrets.CASCADE_STATE_TOKEN }}
+        manifest_file: .github/manifest.yaml
+        manifest_key: ci
+        builds:
+            - name: app
+              workflow: .github/workflows/build-app.yaml
+              triggers: []
+            - name: sharedlib
+              workflow: stablekernel/cascade-example-artifact-a/.github/workflows/build-shared.yaml@main
+              triggers: []
         deploys:
-          - name: artifact-a
-            workflow: .github/workflows/deploy-artifact-a.yaml
-            on_update:
-              deploy:
-                workflow: .github/workflows/deploy-artifact-a.yaml
-      - repo: stablekernel/cascade-example-artifact-b
-        ref: main
-        deploys:
-          - name: artifact-b
-            workflow: .github/workflows/deploy-artifact-b.yaml
-            on_update:
-              deploy:
-                workflow: .github/workflows/deploy-artifact-b.yaml
-  state:
-    staging:
-      sha: f282b90d9f4ec973403cf4a406df5f7342dcab26
-      version: v0.1.0-rc.0
-      committed_at: "2026-07-16T17:58:28Z"
-      committed_by: joshua-temple
-      deploys:
-        app:
-          sha: f282b90d9f4ec973403cf4a406df5f7342dcab26
-          deployed_at: "2026-07-16T17:58:28Z"
-          deployed_by: joshua-temple
-      builds:
-        sharedlib:
-          sha: f282b90d9f4ec973403cf4a406df5f7342dcab26
-          artifact_id: artifact-a-f282b90d9f4ec973403cf4a406df5f7342dcab26
-  latest_release:
-    version: v0.1.0
-    sha: b14cbecfa15bd6e5ff35fc196b696f2147d98a32
-    released_on: "2026-07-16T07:52:18Z"
-    released_by: joshua-temple
+            - name: app
+              workflow: .github/workflows/deploy-app.yaml
+              triggers: []
+        external:
+            - repo: stablekernel/cascade-example-artifact-a
+              ref: main
+              deploys:
+                - name: artifact-a
+                  workflow: .github/workflows/deploy-artifact-a.yaml
+                  on_update:
+                    deploy:
+                        workflow: .github/workflows/deploy-artifact-a.yaml
+            - repo: stablekernel/cascade-example-artifact-b
+              ref: main
+              deploys:
+                - name: artifact-b
+                  workflow: .github/workflows/deploy-artifact-b.yaml
+                  on_update:
+                    deploy:
+                        workflow: .github/workflows/deploy-artifact-b.yaml
+    state:
+        prod: {}
+        staging:
+            sha: f282b90d9f4ec973403cf4a406df5f7342dcab26
+            version: v0.1.0-rc.0
+            committed_at: "2026-07-16T17:58:28Z"
+            committed_by: joshua-temple
+            builds:
+                sharedlib:
+                    sha: f282b90d9f4ec973403cf4a406df5f7342dcab26
+                    artifact_id: artifact-a-f282b90d9f4ec973403cf4a406df5f7342dcab26
+            deploys:
+                app:
+                    sha: f282b90d9f4ec973403cf4a406df5f7342dcab26
+                    deployed_at: "2026-07-16T17:58:28Z"
+                    deployed_by: joshua-temple
+            external:
+                artifact-b:
+                    repo: stablekernel/cascade-example-artifact-b
+                    sha: b17842247290002
+                    version: v2.0.0
+                    deployed_at: "2026-07-16T17:59:02Z"
+                    deployed_by: joshua-temple
+                    artifacts:
+                        artifact_name: widget-b-b17842247290002
+    latest_release:
+        version: v0.1.0
+        sha: b14cbecfa15bd6e5ff35fc196b696f2147d98a32
+        released_on: "2026-07-16T07:52:18Z"
+        released_by: joshua-temple
