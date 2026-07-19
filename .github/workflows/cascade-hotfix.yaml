@@ -73,9 +73,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.16.4-rc.0
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.16.5-rc.1
         with:
-          version: v0.16.4-rc.0
+          version: v0.16.5-rc.1
           token: ${{ github.token }}
       - name: Fetch env branches and tags
         run: |
@@ -123,9 +123,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.16.4-rc.0
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.16.5-rc.1
         with:
-          version: v0.16.4-rc.0
+          version: v0.16.5-rc.1
           token: ${{ github.token }}
       - name: Fetch env branches and tags
         run: |
@@ -239,9 +239,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.16.4-rc.0
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.16.5-rc.1
         with:
-          version: v0.16.4-rc.0
+          version: v0.16.5-rc.1
           token: ${{ github.token }}
       - name: Validate manifest
         run: |
@@ -303,7 +303,6 @@ jobs:
     uses: stablekernel/cascade-example-artifact-a/.github/workflows/build-shared.yaml@main
     with:
       sha: ${{ github.event.pull_request.merge_commit_sha }}
-      target_env: ${{ needs.context.outputs.target_env }}
 
   deploy-app:
     name: Deploy app
@@ -348,9 +347,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v0.16.4-rc.0
+        uses: stablekernel/cascade/.github/actions/setup-cli@v0.16.5-rc.1
         with:
-          version: v0.16.4-rc.0
+          version: v0.16.5-rc.1
           token: ${{ github.token }}
       - name: Fetch env branches and tags
         run: |
