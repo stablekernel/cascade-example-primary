@@ -49,7 +49,7 @@ ci:
             committed_by: stablekerneltokenbot[bot]
         staging:
             sha: 9f939e8b6b25f862708b1213170dc95332958cac
-            version: v0.1.0-rc.0
+            version: v0.16.5-rc.1
             committed_at: "2026-07-19T07:47:16Z"
             committed_by: stablekerneltokenbot[bot]
             builds:
