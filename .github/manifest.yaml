@@ -70,10 +70,12 @@ ci:
                     deployed_by: stablekerneltokenbot[bot]
                 artifact-b:
                     repo: stablekernel/cascade-example-artifact-b
-                    sha: d06c590b667b053d9c624c2c4062fd9dfef34d3b
-                    version: v0.1.0-rc.0
-                    deployed_at: "2026-07-19T05:11:19Z"
+                    sha: b2026071905113314586
+                    version: v2.0.0
+                    deployed_at: "2026-07-19T05:11:47Z"
                     deployed_by: stablekerneltokenbot[bot]
+                    artifacts:
+                        artifact_name: widget-b-b2026071905113314586
     latest_release:
         version: v0.1.0
         sha: 6e2cc838b6b249ffae42c2b09ca9f6254d53c7f9
