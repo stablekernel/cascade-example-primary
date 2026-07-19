@@ -40,7 +40,21 @@ ci:
             on_update:
               deploy:
                 workflow: .github/workflows/deploy-artifact-b.yaml
-  state: {}
+  state:
+    staging:
+      sha: 9f939e8b6b25f862708b1213170dc95332958cac
+      version: v0.1.0-rc.0
+      committed_at: "2026-07-19T07:47:16Z"
+      committed_by: stablekerneltokenbot[bot]
+      deploys:
+        app:
+          sha: 9f939e8b6b25f862708b1213170dc95332958cac
+          deployed_at: "2026-07-19T07:47:16Z"
+          deployed_by: stablekerneltokenbot[bot]
+      builds:
+        sharedlib:
+          sha: 9f939e8b6b25f862708b1213170dc95332958cac
+          artifact_id: artifact-a-9f939e8b6b25f862708b1213170dc95332958cac
   latest_release:
     version: v0.1.0
     sha: 6e2cc838b6b249ffae42c2b09ca9f6254d53c7f9
