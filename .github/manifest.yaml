@@ -42,6 +42,11 @@ ci:
                         workflow: .github/workflows/deploy-artifact-b.yaml
     state:
         prod: {}
+        release:
+            sha: b16046cf70ba5122883022379321c4bca90dbbb8
+            version: v0.1.0
+            committed_at: "2026-09-21T06:16:06Z"
+            committed_by: joshua-temple
         staging:
             sha: b16046cf70ba5122883022379321c4bca90dbbb8
             version: v0.1.0-rc.0
@@ -73,6 +78,6 @@ ci:
                     deployed_by: joshua-temple
     latest_release:
         version: v0.1.0
-        sha: f90d6204b35789ac3abb5bdf6b1dd9e107212d5b
-        released_on: "2026-09-14T06:16:13Z"
+        sha: b16046cf70ba5122883022379321c4bca90dbbb8
+        released_on: "2026-09-21T06:16:06Z"
         released_by: joshua-temple
