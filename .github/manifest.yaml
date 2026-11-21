@@ -57,6 +57,14 @@ ci:
                     deployed_at: "2026-11-21T07:08:39Z"
                     deployed_by: joshua-temple
             external:
+                artifact-a:
+                    repo: stablekernel/cascade-example-artifact-a
+                    sha: a17952449500001
+                    version: v1.0.0
+                    deployed_at: "2026-11-21T07:09:30Z"
+                    deployed_by: joshua-temple
+                    artifacts:
+                        artifact_id: artifact-a-a17952449500001
                 artifact-b:
                     repo: stablekernel/cascade-example-artifact-b
                     sha: b17952449500002
