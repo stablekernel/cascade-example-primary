@@ -40,7 +40,21 @@ ci:
             on_update:
               deploy:
                 workflow: .github/workflows/deploy-artifact-b.yaml
-  state: {}
+  state:
+    staging:
+      sha: dff12b6cc2c55076ae4f0a296af03f023dbc0639
+      version: v0.1.0-rc.0
+      committed_at: "2026-11-21T07:08:39Z"
+      committed_by: joshua-temple
+      deploys:
+        app:
+          sha: dff12b6cc2c55076ae4f0a296af03f023dbc0639
+          deployed_at: "2026-11-21T07:08:39Z"
+          deployed_by: joshua-temple
+      builds:
+        sharedlib:
+          sha: dff12b6cc2c55076ae4f0a296af03f023dbc0639
+          artifact_id: artifact-a-dff12b6cc2c55076ae4f0a296af03f023dbc0639
   latest_release:
     version: v0.1.0
     sha: f0cbd5fbc4ed96b31828f74e1941ac59deacc7f7
