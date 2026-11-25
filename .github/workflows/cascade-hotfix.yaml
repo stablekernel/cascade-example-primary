@@ -73,9 +73,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.1.3-rc.3
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.1.3-rc.4
         with:
-          version: v1.1.3-rc.3
+          version: v1.1.3-rc.4
           token: ${{ github.token }}
       - name: Fetch env branches and tags
         run: |
@@ -123,9 +123,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.1.3-rc.3
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.1.3-rc.4
         with:
-          version: v1.1.3-rc.3
+          version: v1.1.3-rc.4
           token: ${{ github.token }}
       - name: Fetch env branches and tags
         run: |
@@ -239,9 +239,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.1.3-rc.3
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.1.3-rc.4
         with:
-          version: v1.1.3-rc.3
+          version: v1.1.3-rc.4
           token: ${{ github.token }}
       - name: Validate manifest
         run: |
@@ -293,6 +293,7 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'cascade-hotfix')
     uses: ./.github/workflows/build-app.yaml
     with:
+      environment: ${{ needs.context.outputs.target_env }}
       sha: ${{ github.event.pull_request.merge_commit_sha }}
       target_env: ${{ needs.context.outputs.target_env }}
 
@@ -302,6 +303,7 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'cascade-hotfix')
     uses: stablekernel/cascade-example-artifact-a/.github/workflows/build-shared.yaml@main
     with:
+      environment: ${{ needs.context.outputs.target_env }}
       sha: ${{ github.event.pull_request.merge_commit_sha }}
 
   deploy-app:
@@ -347,9 +349,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup CLI
-        uses: stablekernel/cascade/.github/actions/setup-cli@v1.1.3-rc.3
+        uses: stablekernel/cascade/.github/actions/setup-cli@v1.1.3-rc.4
         with:
-          version: v1.1.3-rc.3
+          version: v1.1.3-rc.4
           token: ${{ github.token }}
       - name: Fetch env branches and tags
         run: |
